@@ -263,6 +263,8 @@ def main() -> int:
         w = summary.get("winner_by_quality")
         if w is not None:
             winners[str(w)] = winners.get(str(w), 0) + 1
+        elif summary.get("winner_by_quality_ties"):
+            winners["tie"] = winners.get("tie", 0) + 1
 
     summaries = [_summarize_pipeline(rows, p) for p in pipelines]
     print("")

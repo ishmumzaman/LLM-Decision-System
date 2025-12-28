@@ -22,9 +22,24 @@ def not_grounded_check(result: PipelineResult) -> tuple[list[str], list[str], st
         return [], [], None, 0.0
     if not result.retrieved_chunks:
         return [], ["NO_EVIDENCE"], "No retrieved evidence available.", 0.25
-    cited = {int(m.group(1)) for m in _CITATION_RE.finditer(result.answer or "")}
+    answer = result.answer or ""
+    cited = {int(m.group(1)) for m in _CITATION_RE.finditer(answer)}
     if not cited:
+        lowered = answer.lower()
+        if "don't know" in lowered or "do not know" in lowered or "not in the context" in lowered:
+            return [], [], None, 0.0
         return [], ["MISSING_CITATIONS"], "No chunk citations found (expected like [12]).", 0.25
+    retrieved_ids = {c.chunk_id for c in result.retrieved_chunks}
+    invalid = sorted(cited - retrieved_ids)
+    if invalid:
+        shown = ", ".join(str(i) for i in invalid[:5])
+        more = "..." if len(invalid) > 5 else ""
+        return (
+            [],
+            ["INVALID_CITATIONS"],
+            f"Citations refer to chunks not in retrieved evidence: {shown}{more}",
+            0.25,
+        )
     return [], [], None, 0.0
 
 
@@ -93,23 +108,29 @@ def _summarize(
                 best = (k, v.cost_estimate_usd)
         return best
 
-    def safe_max_quality() -> tuple[str | None, float | None]:
-        best: tuple[str | None, float | None] = (None, None)
-        for k, v in evaluations.items():
-            if v.quality_score is None:
-                continue
-            if best[1] is None or v.quality_score > best[1]:
-                best = (k, v.quality_score)
-        return best
+    def safe_max_quality() -> tuple[str | None, float | None, list[str] | None]:
+        scored: dict[str, float] = {
+            k: float(v.quality_score) for k, v in evaluations.items() if v.quality_score is not None
+        }
+        if not scored:
+            return None, None, None
+        best_score = max(scored.values())
+        winners = sorted([k for k, s in scored.items() if s == best_score])
+        if len(winners) == 1:
+            return winners[0], best_score, None
+        return None, best_score, winners
 
     winner_by_latency, _ = safe_min_latency()
     winner_by_cost, _ = safe_min_cost()
-    winner_by_quality, _ = safe_max_quality()
+    winner_by_quality, _, winner_by_quality_ties = safe_max_quality()
 
-    return {
+    summary: dict[str, Any] = {
         "winner_by_quality": winner_by_quality,
+        "winner_by_quality_ties": winner_by_quality_ties,
         "winner_by_latency": winner_by_latency,
         "winner_by_cost": winner_by_cost,
         "tradeoff_summary": "Compare quality vs latency vs cost; prefer grounded answers when needed.",
     }
-
+    if summary["winner_by_quality_ties"] is None:
+        summary.pop("winner_by_quality_ties", None)
+    return summary
