@@ -1,0 +1,35 @@
+.git
+.github
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets / env
+.env
+.env.*
+backend/.env
+backend/.env.*
+
+# Logs / local artifacts
+*.log
+*.jsonl
+db.sqlite
+stdout.txt
+stderr.txt
+brave-*.txt
+brave-stdio-probe.js
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+
+# Domain corpora (fetched locally; artifacts are committed instead)
+domains/*/data/
+

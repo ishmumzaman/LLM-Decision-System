@@ -30,3 +30,9 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 1. Install deps: `cd frontend` then `npm install`
 2. Configure API URL (optional): copy `frontend/.env.example` -> `frontend/.env` and set `VITE_API_BASE_URL=http://127.0.0.1:8000`
 3. Run dev server: `npm run dev`
+
+## Docker (Backend + Frontend)
+Local run (requires Docker):
+1. Set env var: `setx OPENAI_API_KEY "..."` (new terminal after) or export it in your shell
+2. Start: `docker compose up --build`
+3. Open UI: `http://127.0.0.1:5173` (API at `http://127.0.0.1:8000`)
