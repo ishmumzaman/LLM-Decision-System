@@ -1,0 +1,41 @@
+# OS
+Thumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+.venv/
+venv/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env
+.env
+.env.*
+!.env.example
+backend/.env
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local logs / run artifacts
+*.jsonl
+db.sqlite
+
+# Domain corpora (fetched locally; artifacts are committed instead)
+domains/*/data/
+
+# MCP troubleshooting artifacts (generated)
+brave-*.txt
+brave-stdio-probe.js
+stdout.txt
+stderr.txt

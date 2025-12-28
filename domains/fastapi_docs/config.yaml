@@ -1,0 +1,16 @@
+name: fastapi_docs
+documents_path: ./domains/fastapi_docs/data
+chunk_size: 800
+chunk_overlap: 120
+retrieval_k: 6
+evaluation_rules:
+  - not_grounded_check
+  - overconfident_language_check
+domain_prompt_prefix: |
+  You are answering questions about FastAPI documentation.
+  Prefer authoritative explanations grounded in the docs.
+  If you are not sure, say you don't know.
+allowed_file_types:
+  - md
+max_docs: 200
+
