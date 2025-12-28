@@ -25,3 +25,8 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 ## Regression Suite
 - Query set: `backend/tests/fixtures/mvp_queries.yaml`
 - Runner (backend must be running): `.\.venv\Scripts\python backend/scripts/run_regression.py --base-url http://127.0.0.1:8000`
+
+## Frontend (MVP UI)
+1. Install deps: `cd frontend` then `npm install`
+2. Configure API URL (optional): copy `frontend/.env.example` -> `frontend/.env` and set `VITE_API_BASE_URL=http://127.0.0.1:8000`
+3. Run dev server: `npm run dev`
