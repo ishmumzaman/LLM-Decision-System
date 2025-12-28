@@ -34,6 +34,9 @@ db.sqlite
 # Domain corpora (fetched locally; artifacts are committed instead)
 domains/*/data/
 
+# Regression outputs
+backend/regression_runs/
+
 # MCP troubleshooting artifacts (generated)
 brave-*.txt
 brave-stdio-probe.js

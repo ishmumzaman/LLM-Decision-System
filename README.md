@@ -21,3 +21,7 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 3. Fetch corpus (one-time): `python backend/scripts/fetch_fastapi_docs.py` (optional: use `--commit <sha>` for exact reproducibility)
 4. Build artifacts (one-time): `python backend/scripts/build_index.py --domain fastapi_docs`
 5. Run API: `.\.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --reload`
+
+## Regression Suite
+- Query set: `backend/tests/fixtures/mvp_queries.yaml`
+- Runner (backend must be running): `.\.venv\Scripts\python backend/scripts/run_regression.py --base-url http://127.0.0.1:8000`

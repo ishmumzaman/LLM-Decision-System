@@ -1,0 +1,106 @@
+suite: fastapi_docs_mvp_v1
+domain: fastapi_docs
+description: >
+  Minimal regression suite for the MVP. Run these periodically to ensure prompt-only vs RAG
+  behavior stays consistent (citations, grounding, latency, and partial-failure handling).
+queries:
+  - id: what_is_fastapi
+    query: "What is FastAPI and what are its main features?"
+    tags: ["intro"]
+
+  - id: quickstart_first_steps
+    query: "How do I run a minimal FastAPI app locally (basic 'Hello World')?"
+    tags: ["tutorial", "getting-started"]
+
+  - id: path_params_vs_query_params
+    query: "In FastAPI, how do path parameters differ from query parameters? Give a short example."
+    tags: ["routing"]
+
+  - id: request_body_pydantic
+    query: "How do I declare a request body using a Pydantic model in FastAPI?"
+    tags: ["request-body", "pydantic"]
+
+  - id: response_model
+    query: "How do I use response_model to shape and validate responses?"
+    tags: ["response", "pydantic"]
+
+  - id: http_exception
+    query: "How do I return an error using HTTPException in FastAPI?"
+    tags: ["errors"]
+
+  - id: dependencies_basics
+    query: "How do FastAPI dependencies work with Depends()? Explain briefly with a minimal example."
+    tags: ["dependencies"]
+
+  - id: dependencies_yield
+    query: "How do I create a dependency that uses yield (cleanup/teardown) in FastAPI?"
+    tags: ["dependencies", "yield"]
+
+  - id: apirouter_include
+    query: "How do I create an APIRouter and include it in the main FastAPI app?"
+    tags: ["routing", "apirouter"]
+
+  - id: cors_middleware
+    query: "How do I add CORS middleware in FastAPI?"
+    tags: ["middleware", "cors"]
+
+  - id: custom_middleware
+    query: "How do I add custom middleware using @app.middleware('http') in FastAPI?"
+    tags: ["middleware"]
+
+  - id: background_tasks
+    query: "How do I run a background task after returning a response in FastAPI?"
+    tags: ["background-tasks"]
+
+  - id: cookies_and_headers
+    query: "How do I read and set cookies and headers in FastAPI?"
+    tags: ["headers", "cookies"]
+
+  - id: forms_and_files
+    query: "How do I accept form data and file uploads in FastAPI?"
+    tags: ["forms", "uploads"]
+
+  - id: uploadfile
+    query: "What is UploadFile in FastAPI and when should I use it instead of bytes?"
+    tags: ["uploads"]
+
+  - id: websocket_basics
+    query: "How do I implement a basic WebSocket endpoint in FastAPI?"
+    tags: ["websockets"]
+
+  - id: events_lifespan
+    query: "How do I run startup/shutdown logic (lifespan/events) in FastAPI?"
+    tags: ["lifespan", "events"]
+
+  - id: behind_a_proxy
+    query: "How do I run FastAPI behind a proxy and configure root_path / forwarded headers?"
+    tags: ["deployment", "proxy"]
+
+  - id: static_files
+    query: "How do I serve static files in FastAPI?"
+    tags: ["staticfiles"]
+
+  - id: testing_testclient
+    query: "How do I test a FastAPI app using TestClient?"
+    tags: ["testing"]
+
+  - id: async_tests
+    query: "How do I write async tests for FastAPI?"
+    tags: ["testing", "async"]
+
+  - id: openapi_customize
+    query: "How do I customize or extend the generated OpenAPI schema in FastAPI?"
+    tags: ["openapi"]
+
+  - id: oauth2_password_flow
+    query: "How do I set up OAuth2 password flow security in FastAPI at a high level?"
+    tags: ["security", "oauth2"]
+
+  - id: graphql_out_of_box
+    query: "Does FastAPI support GraphQL out of the box? If not, what is the recommended approach?"
+    tags: ["how-to", "graphql"]
+
+  - id: deno_trap
+    query: "Can FastAPI run on Deno? Answer only if the docs explicitly say so."
+    tags: ["trap"]
+
