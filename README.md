@@ -16,8 +16,8 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 - Fairness: prompt-only and RAG share the same model + generation settings per `/run`.
 
 ## Next Steps (Backend)
-1. Install deps: `python -m venv .venv` then `./.venv/Scripts/pip install -r backend/requirements.txt`
+1. Install deps: `python -m venv .venv` then `.\.venv\Scripts\python -m pip install -r backend/requirements.txt`
 2. Set env: copy `backend/.env.example` -> `backend/.env` and set `OPENAI_API_KEY=...`
 3. Fetch corpus (one-time): `python backend/scripts/fetch_fastapi_docs.py` (optional: use `--commit <sha>` for exact reproducibility)
 4. Build artifacts (one-time): `python backend/scripts/build_index.py --domain fastapi_docs`
-5. Run API: `uvicorn app.main:app --app-dir backend --reload`
+5. Run API: `.\.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --reload`
