@@ -10,6 +10,7 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 
 ## MVP Decisions (Locked)
 - Domain: FastAPI docs (`fastapi_docs`).
+- Additional example domain (post-MVP): React docs (`react_docs`).
 - LLM provider (MVP): OpenAI (keep code abstractable later).
 - Python deps: venv + `requirements.txt`.
 - Ship prebuilt RAG artifacts and commit them under `domains/<domain>/artifacts/`.
@@ -18,14 +19,20 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 ## Next Steps (Backend)
 1. Install deps: `python -m venv .venv` then `.\.venv\Scripts\python -m pip install -r backend/requirements.txt`
 2. Set env: copy `backend/.env.example` -> `backend/.env` and set `OPENAI_API_KEY=...`
-3. Fetch corpus (one-time): `python backend/scripts/fetch_fastapi_docs.py` (optional: use `--commit <sha>` for exact reproducibility)
-4. Build artifacts (one-time): `python backend/scripts/build_index.py --domain fastapi_docs`
+3. Fetch corpus (one-time):
+   - FastAPI: `python backend/scripts/fetch_fastapi_docs.py` (optional: use `--commit <sha>` for exact reproducibility)
+   - React: `python backend/scripts/fetch_react_docs.py` (optional: `--include <subdir>` repeatable, or `--include-blog`)
+4. Build artifacts (one-time):
+   - FastAPI: `python backend/scripts/build_index.py --domain fastapi_docs`
+   - React: `python backend/scripts/build_index.py --domain react_docs`
 5. Run API: `.\.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --reload`
 
 ## Regression Suite
 - Query set: `backend/tests/fixtures/mvp_queries.yaml`
 - Runner (backend must be running): `.\.venv\Scripts\python backend/scripts/run_regression.py --base-url http://127.0.0.1:8000`
   - Include fine-tune: `--pipelines prompt,rag,finetune` (requires a configured fine-tuned model)
+- React suite: `backend/tests/fixtures/react_docs_mvp_v1.yaml`
+  - Runner: `.\.venv\Scripts\python backend/scripts/run_regression.py --suite backend/tests/fixtures/react_docs_mvp_v1.yaml --pipelines prompt,rag`
 
 ## Fine-tuning (Optional)
 This enables a third pipeline: `finetune`.

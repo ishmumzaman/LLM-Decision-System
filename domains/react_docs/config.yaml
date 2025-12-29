@@ -1,0 +1,16 @@
+name: react_docs
+documents_path: ./domains/react_docs/data
+chunk_size: 800
+chunk_overlap: 120
+retrieval_k: 6
+evaluation_rules:
+  - not_grounded_check
+  - overconfident_language_check
+domain_prompt_prefix: |
+  You are answering questions about the official React documentation (react.dev).
+  Prefer authoritative explanations grounded in the docs.
+  If you are not sure, say you don't know.
+allowed_file_types:
+  - md
+  - mdx
+max_docs: 200

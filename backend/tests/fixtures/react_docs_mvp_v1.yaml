@@ -1,0 +1,154 @@
+suite: react_docs_mvp_v1
+domain: react_docs
+description: >
+  Starter regression suite for the React docs domain. Expand over time as the domain grows
+  and as evaluation expectations become more strict.
+queries:
+  - id: what_is_react
+    query: "What is React and what is it used for?"
+    tags: ["intro"]
+    expect:
+      must_include_any:
+        - ["component", "components"]
+        - ["user interface", "UI"]
+
+  - id: jsx_basics
+    query: "What is JSX in React? Show a tiny example."
+    tags: ["jsx"]
+    expect:
+      must_include_any:
+        - ["JSX"]
+        - ["<", "</", "return"]
+
+  - id: props_vs_state
+    query: "In React, what's the difference between props and state?"
+    tags: ["state", "props"]
+    expect:
+      must_include_any:
+        - ["props"]
+        - ["state"]
+
+  - id: use_state
+    query: "How do I use useState to manage state in a function component?"
+    tags: ["hooks", "state"]
+    expect:
+      must_include_any:
+        - ["useState"]
+        - ["set", "setter"]
+
+  - id: use_effect
+    query: "When should I use useEffect and how does the dependency array work?"
+    tags: ["hooks", "effects"]
+    expect:
+      must_include_any:
+        - ["useEffect"]
+        - ["dependency", "dependencies", "dependency array"]
+
+  - id: effect_cleanup
+    query: "How do I clean up an effect in React (e.g., unsubscribe a listener)?"
+    tags: ["hooks", "effects"]
+    expect:
+      must_include_any:
+        - ["return", "cleanup"]
+        - ["unsubscribe", "removeEventListener", "clearInterval"]
+
+  - id: controlled_input
+    query: "What is a controlled input in React and how do I implement one?"
+    tags: ["forms"]
+    expect:
+      must_include_any:
+        - ["controlled"]
+        - ["value", "onChange"]
+
+  - id: keys_in_lists
+    query: "Why do I need keys when rendering lists in React? What makes a good key?"
+    tags: ["lists"]
+    expect:
+      must_include_any:
+        - ["key", "keys"]
+        - ["stable", "unique", "id"]
+
+  - id: conditional_rendering
+    query: "How do I conditionally render elements in React?"
+    tags: ["rendering"]
+    expect:
+      must_include_any:
+        - ["&&", "ternary", "?:", "if"]
+
+  - id: lifting_state_up
+    query: "What does it mean to lift state up in React, and when should I do it?"
+    tags: ["state"]
+    expect:
+      must_include_any:
+        - ["lift", "lifting state"]
+        - ["common parent", "shared state"]
+
+  - id: context_basics
+    query: "How do I pass data deeply without prop drilling in React?"
+    tags: ["context"]
+    expect:
+      must_include_any:
+        - ["Context", "createContext"]
+        - ["Provider"]
+
+  - id: use_reducer
+    query: "When should I use useReducer instead of useState?"
+    tags: ["hooks", "state"]
+    expect:
+      must_include_any:
+        - ["useReducer"]
+        - ["reducer", "dispatch", "action"]
+
+  - id: custom_hooks
+    query: "What is a custom hook and when should I create one?"
+    tags: ["hooks"]
+    expect:
+      must_include_any:
+        - ["custom hook", "custom hooks"]
+        - ["reuse", "share logic"]
+
+  - id: use_memo_vs_use_callback
+    query: "What's the difference between useMemo and useCallback?"
+    tags: ["hooks", "performance"]
+    expect:
+      must_include_any:
+        - ["useMemo"]
+        - ["useCallback"]
+
+  - id: refs_use_ref
+    query: "How do I reference a DOM element in React?"
+    tags: ["refs"]
+    expect:
+      must_include_any:
+        - ["useRef"]
+        - ["ref", "refs"]
+
+  - id: strict_mode
+    query: "What is React Strict Mode and why can effects run twice in development?"
+    tags: ["dev"]
+    expect:
+      must_include_any:
+        - ["StrictMode", "strict mode"]
+        - ["development", "dev"]
+
+  - id: create_root
+    query: "How do I render a React app in the browser with createRoot?"
+    tags: ["react-dom"]
+    expect:
+      must_include_any:
+        - ["createRoot"]
+        - ["root.render", "render"]
+
+  - id: server_components_basics
+    query: "At a high level, what are React Server Components?"
+    tags: ["rsc"]
+    expect:
+      must_include_any:
+        - ["Server Components", "server components", "RSC"]
+
+  - id: trap_deno
+    query: "Can React run on Deno? Answer only if the docs explicitly say so."
+    tags: ["trap"]
+    expect:
+      expect_idk: true
+
