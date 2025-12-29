@@ -12,6 +12,7 @@ from openai import AsyncOpenAI
 from app.domains.loader import load_domain_spec, load_registry
 from app.eval.evaluator import evaluate_results
 from app.llm.openai_client import build_openai_client
+from app.pipelines.finetuned import run_finetuned
 from app.pipelines.prompt_only import run_prompt_only
 from app.pipelines.rag import run_rag
 from app.schemas.run import PipelineResult, RunRequest, RunResponse
@@ -57,7 +58,18 @@ async def _run_one(pipeline: str, request: RunRequest, domain_name: str) -> Pipe
         )
     if pipeline == "rag":
         return await run_rag(client=_get_client(), settings=settings, domain=domain, query=request.query)
+    if pipeline == "finetune":
+        return await run_finetuned(
+            client=_get_client(), settings=settings, domain=domain, query=request.query
+        )
     raise ValueError(f"Unsupported pipeline: {pipeline}")
+
+
+def _expected_model_for_pipeline(pipeline: str, domain_name: str) -> str:
+    if pipeline != "finetune":
+        return settings.openai_model
+    domain = load_domain_spec(settings.domains_dir, domain_name)
+    return domain.finetuned_model or settings.openai_finetuned_model or settings.openai_model
 
 
 @app.post("/run", response_model=RunResponse)
@@ -80,7 +92,7 @@ async def run(request: RunRequest) -> RunResponse:
     started = time.perf_counter()
 
     pipelines = request.pipelines or ["prompt", "rag"]
-    supported = {"prompt", "rag"}
+    supported = {"prompt", "rag", "finetune"}
     for p in pipelines:
         if p not in supported:
             raise HTTPException(status_code=400, detail={"error": "INVALID_PIPELINE", "pipeline": p})
@@ -97,7 +109,7 @@ async def run(request: RunRequest) -> RunResponse:
             latency_ms = int((time.perf_counter() - started) * 1000)
             results[name] = PipelineResult(
                 pipeline=name,
-                model=settings.openai_model,
+                model=_expected_model_for_pipeline(name, request.domain),
                 generation_config={
                     "temperature": settings.temperature,
                     "top_p": settings.top_p,
@@ -116,7 +128,7 @@ async def run(request: RunRequest) -> RunResponse:
             latency_ms = int((time.perf_counter() - started) * 1000)
             results[name] = PipelineResult(
                 pipeline=name,
-                model=settings.openai_model,
+                model=_expected_model_for_pipeline(name, request.domain),
                 generation_config={
                     "temperature": settings.temperature,
                     "top_p": settings.top_p,

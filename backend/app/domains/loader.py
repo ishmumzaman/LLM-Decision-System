@@ -41,6 +41,7 @@ def load_domain_spec(domains_dir: Path, domain_name: str) -> DomainSpec:
         retrieval_k=config.retrieval_k,
         evaluation_rules=list(config.evaluation_rules),
         domain_prompt_prefix=config.domain_prompt_prefix,
+        finetuned_model=config.finetuned_model,
         allowed_file_types=[ft.lstrip(".") for ft in config.allowed_file_types],
         max_docs=config.max_docs,
         index_path=index_path,

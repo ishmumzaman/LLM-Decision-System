@@ -8,7 +8,11 @@ function App() {
   const [domains, setDomains] = useState<string[]>([])
   const [domain, setDomain] = useState('fastapi_docs')
   const [query, setQuery] = useState('')
-  const [pipelines, setPipelines] = useState<Record<string, boolean>>({ prompt: true, rag: true })
+  const [pipelines, setPipelines] = useState<Record<string, boolean>>({
+    prompt: true,
+    rag: true,
+    finetune: false,
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -79,8 +83,9 @@ function App() {
           <div>
             <h1 className="text-xl font-semibold tracking-tight">LLM Decision System</h1>
             <p className="text-sm text-slate-300">
-              Compare <span className="font-medium text-slate-100">prompt</span> vs{' '}
-              <span className="font-medium text-slate-100">RAG</span> on identical inputs.
+              Compare <span className="font-medium text-slate-100">prompt</span>,{' '}
+              <span className="font-medium text-slate-100">RAG</span>, and{' '}
+              <span className="font-medium text-slate-100">fine-tuned</span> on identical inputs.
             </p>
           </div>
 
@@ -118,6 +123,11 @@ function App() {
                   label="RAG"
                   checked={pipelines.rag}
                   onChange={(v) => setPipelines((p) => ({ ...p, rag: v }))}
+                />
+                <PipelineToggle
+                  label="Fine-tuned"
+                  checked={pipelines.finetune}
+                  onChange={(v) => setPipelines((p) => ({ ...p, finetune: v }))}
                 />
               </div>
             </div>
@@ -284,7 +294,12 @@ function PipelineCard({
   }
 
   const isRag = pipeline === 'rag'
-  const title = pipeline === 'prompt' ? 'Prompt' : pipeline.toUpperCase()
+  const title =
+    pipeline === 'prompt'
+      ? 'Prompt'
+      : pipeline === 'finetune'
+        ? 'Fine-tuned'
+        : pipeline.toUpperCase()
   const latency = result.latency_ms
   const tokensIn = result.tokens_in ?? null
   const tokensOut = result.tokens_out ?? null

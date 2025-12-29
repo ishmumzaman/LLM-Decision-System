@@ -1,0 +1,75 @@
+dataset: fastapi_docs_train_v1
+domain: fastapi_docs
+notes: |
+  Small starter set meant to validate the fine-tuning workflow end-to-end.
+  For meaningful gains, generate/curate a larger train set and keep a separate eval set.
+examples:
+  - id: what_is_fastapi
+    query: What is FastAPI?
+    answer: |
+      FastAPI is a modern, high-performance Python web framework for building APIs using standard Python type hints.
+      It is built on Starlette for the web layer and Pydantic for data validation/serialization.
+
+  - id: quickstart_run_dev
+    query: How do I run a FastAPI app in development with auto-reload?
+    answer: |
+      A common approach is to run Uvicorn with reload enabled, for example:
+      `uvicorn main:app --reload`
+
+  - id: path_vs_query
+    query: What's the difference between path parameters and query parameters in FastAPI?
+    answer: |
+      Path parameters are part of the URL path and are required to match the path template (e.g. `/items/{item_id}`).
+      Query parameters come after `?` in the URL and are typically optional (often expressed by giving a default value).
+
+  - id: request_body_pydantic
+    query: How do I declare a JSON request body using a Pydantic model?
+    answer: |
+      Define a class that inherits from `BaseModel`, then use it as a function parameter in your path operation.
+      FastAPI will parse and validate the request JSON into that model.
+
+  - id: response_model
+    query: What does response_model do in FastAPI?
+    answer: |
+      `response_model` declares the schema of the response data.
+      FastAPI uses it to validate and serialize the output and to document the response in the OpenAPI schema.
+
+  - id: raise_httpexception
+    query: How do you return an HTTP error response from a path operation?
+    answer: |
+      Raise `HTTPException` with an appropriate status code and detail, for example:
+      `raise HTTPException(status_code=404, detail="Not found")`.
+
+  - id: dependencies_basics
+    query: What is dependency injection in FastAPI?
+    answer: |
+      Dependencies are callables that FastAPI can execute to provide values to your path operations (and other dependencies).
+      You declare them with `Depends(...)`, which enables reuse and shared logic (auth, DB sessions, etc.).
+
+  - id: cors_middleware
+    query: How do I enable CORS in FastAPI?
+    answer: |
+      Add `CORSMiddleware` to the app and configure allowed origins/methods/headers as needed.
+
+  - id: background_tasks
+    query: What is BackgroundTasks used for?
+    answer: |
+      `BackgroundTasks` lets you schedule functions to run after returning a response, useful for lightweight async work
+      like sending emails or writing logs without blocking the request.
+
+  - id: static_files
+    query: How do I serve static files in FastAPI?
+    answer: |
+      Mount `StaticFiles` on a path, for example:
+      `app.mount("/static", StaticFiles(directory="static"), name="static")`.
+
+  - id: websocket
+    query: Does FastAPI support WebSockets?
+    answer: |
+      Yes. FastAPI supports WebSocket endpoints, and you can define them with `@app.websocket(...)`.
+
+  - id: testclient
+    query: How do I test a FastAPI app?
+    answer: |
+      You can use `TestClient` to call your app in tests and make assertions on status codes and JSON responses.
+

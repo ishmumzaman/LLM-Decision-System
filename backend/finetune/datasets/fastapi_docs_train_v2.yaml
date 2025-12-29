@@ -1,0 +1,112 @@
+dataset: fastapi_docs_train_v2
+domain: fastapi_docs
+notes: |
+  v2 extends the starter dataset with explicit abstention ("I don't know") examples
+  for out-of-scope questions not covered by the FastAPI docs corpus. This helps the
+  fine-tuned model follow the runtime system prompt: answer only when the docs
+  explicitly support the claim, otherwise say you don't know.
+examples:
+  - id: what_is_fastapi
+    query: What is FastAPI?
+    answer: |
+      FastAPI is a modern, high-performance Python web framework for building APIs using standard Python type hints.
+      It is built on Starlette for the web layer and Pydantic for data validation/serialization.
+
+  - id: quickstart_run_dev
+    query: How do I run a FastAPI app in development with auto-reload?
+    answer: |
+      You can run the development server with auto-reload using `fastapi dev`, for example:
+      `fastapi dev main.py`
+      You can also run Uvicorn directly with reload enabled, for example:
+      `uvicorn main:app --reload`
+
+  - id: path_vs_query
+    query: What's the difference between path parameters and query parameters in FastAPI?
+    answer: |
+      Path parameters are part of the URL path and are required to match the path template (e.g. `/items/{item_id}`).
+      Query parameters come after `?` in the URL and are typically optional (often expressed by giving a default value).
+
+  - id: request_body_pydantic
+    query: How do I declare a JSON request body using a Pydantic model?
+    answer: |
+      Define a class that inherits from `BaseModel`, then use it as a function parameter in your path operation.
+      FastAPI will parse and validate the request JSON into that model.
+
+  - id: response_model
+    query: What does response_model do in FastAPI?
+    answer: |
+      `response_model` declares the schema of the response data.
+      FastAPI uses it to validate and serialize the output and to document the response in the OpenAPI schema.
+
+  - id: raise_httpexception
+    query: How do you return an HTTP error response from a path operation?
+    answer: |
+      Raise `HTTPException` with an appropriate status code and detail, for example:
+      `raise HTTPException(status_code=404, detail="Not found")`.
+
+  - id: dependencies_basics
+    query: What is dependency injection in FastAPI?
+    answer: |
+      Dependencies are callables that FastAPI can execute to provide values to your path operations (and other dependencies).
+      You declare them with `Depends(...)`, which enables reuse and shared logic (auth, DB sessions, etc.).
+
+  - id: cors_middleware
+    query: How do I enable CORS in FastAPI?
+    answer: |
+      Add `CORSMiddleware` to the app and configure allowed origins/methods/headers as needed.
+
+  - id: background_tasks
+    query: What is BackgroundTasks used for?
+    answer: |
+      `BackgroundTasks` lets you schedule functions to run after returning a response, useful for lightweight async work
+      like sending emails or writing logs without blocking the request.
+
+  - id: static_files
+    query: How do I serve static files in FastAPI?
+    answer: |
+      Mount `StaticFiles` on a path, for example:
+      `app.mount("/static", StaticFiles(directory="static"), name="static")`.
+
+  - id: websocket
+    query: Does FastAPI support WebSockets?
+    answer: |
+      Yes. FastAPI supports WebSocket endpoints, and you can define them with `@app.websocket(...)`.
+
+  - id: testclient
+    query: How do I test a FastAPI app?
+    answer: |
+      You can use `TestClient` to call your app in tests and make assertions on status codes and JSON responses.
+
+  - id: openapi_customize
+    query: How do I customize or extend the generated OpenAPI schema in FastAPI?
+    answer: |
+      You can override the application's `.openapi()` method by assigning a custom function (often called `custom_openapi`).
+      In that function, call `fastapi.openapi.utils.get_openapi()` to generate the schema, modify it as needed, and cache it
+      in `app.openapi_schema` so it is generated only once.
+
+  - id: graphql_out_of_box
+    query: Does FastAPI support GraphQL out of the box? If not, what is the recommended approach?
+    answer: |
+      FastAPI doesn't include GraphQL built-in out of the box. Instead, you integrate a third-party GraphQL library that supports ASGI.
+      A commonly recommended approach is to use Strawberry, but you can also use other ASGI-compatible GraphQL libraries.
+
+  - id: deno_trap_idk
+    query: Can FastAPI run on Deno? Answer only if the docs explicitly say so.
+    answer: |
+      I don't know. The FastAPI documentation in this context does not mention Deno, so I can't answer that based on the docs.
+
+  - id: deno_deploy_idk
+    query: Is there an official way to run FastAPI on Deno Deploy? Answer only if the docs explicitly say so.
+    answer: |
+      I don't know. The FastAPI documentation in this context does not mention Deno Deploy, so I can't answer that based on the docs.
+
+  - id: node_bun_idk
+    query: Can FastAPI run on Node.js or Bun? Answer only if the docs explicitly say so.
+    answer: |
+      I don't know. The FastAPI documentation in this context does not mention Node.js or Bun runtimes, so I can't answer that based on the docs.
+
+  - id: jvm_idk
+    query: Can I run FastAPI on the JVM (Java/Kotlin)? Answer only if the docs explicitly say so.
+    answer: |
+      I don't know. The FastAPI documentation in this context does not mention running on the JVM, so I can't answer that based on the docs.
+

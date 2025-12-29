@@ -7,100 +7,188 @@ queries:
   - id: what_is_fastapi
     query: "What is FastAPI and what are its main features?"
     tags: ["intro"]
+    expect:
+      must_include_any:
+        - ["type hint", "typing", "type annotation"]
+        - ["Starlette", "Pydantic"]
 
   - id: quickstart_first_steps
     query: "How do I run a minimal FastAPI app locally (basic 'Hello World')?"
     tags: ["tutorial", "getting-started"]
+    expect:
+      must_include_any:
+        - ["uvicorn", "fastapi dev", "fastapi run"]
 
   - id: path_params_vs_query_params
     query: "In FastAPI, how do path parameters differ from query parameters? Give a short example."
     tags: ["routing"]
+    expect:
+      must_include_any:
+        - ["path parameter", "/items/{", "{item_id}"]
+        - ["query parameter"]
 
   - id: request_body_pydantic
     query: "How do I declare a request body using a Pydantic model in FastAPI?"
     tags: ["request-body", "pydantic"]
+    expect:
+      must_include_any:
+        - ["BaseModel", "Pydantic"]
 
   - id: response_model
     query: "How do I use response_model to shape and validate responses?"
     tags: ["response", "pydantic"]
+    expect:
+      must_include:
+        - "response_model"
 
   - id: http_exception
     query: "How do I return an error using HTTPException in FastAPI?"
     tags: ["errors"]
+    expect:
+      must_include:
+        - "HTTPException"
 
   - id: dependencies_basics
     query: "How do FastAPI dependencies work with Depends()? Explain briefly with a minimal example."
     tags: ["dependencies"]
+    expect:
+      must_include:
+        - "Depends"
 
   - id: dependencies_yield
     query: "How do I create a dependency that uses yield (cleanup/teardown) in FastAPI?"
     tags: ["dependencies", "yield"]
+    expect:
+      must_include_any:
+        - ["yield"]
+        - ["Depends"]
 
   - id: apirouter_include
     query: "How do I create an APIRouter and include it in the main FastAPI app?"
     tags: ["routing", "apirouter"]
+    expect:
+      must_include_any:
+        - ["APIRouter"]
+        - ["include_router", "include router"]
 
   - id: cors_middleware
     query: "How do I add CORS middleware in FastAPI?"
     tags: ["middleware", "cors"]
+    expect:
+      must_include_any:
+        - ["CORSMiddleware", "CORS"]
 
   - id: custom_middleware
     query: "How do I add custom middleware using @app.middleware('http') in FastAPI?"
     tags: ["middleware"]
+    expect:
+      must_include_any:
+        - ["@app.middleware", "middleware('http')", "middleware(\"http\")"]
 
   - id: background_tasks
     query: "How do I run a background task after returning a response in FastAPI?"
     tags: ["background-tasks"]
+    expect:
+      must_include_any:
+        - ["BackgroundTasks", "background task"]
 
   - id: cookies_and_headers
     query: "How do I read and set cookies and headers in FastAPI?"
     tags: ["headers", "cookies"]
+    expect:
+      must_include_any:
+        - ["Cookie", "cookies"]
+        - ["Header", "headers"]
 
   - id: forms_and_files
     query: "How do I accept form data and file uploads in FastAPI?"
     tags: ["forms", "uploads"]
+    expect:
+      must_include_any:
+        - ["Form", "form data"]
+        - ["File", "UploadFile"]
 
   - id: uploadfile
     query: "What is UploadFile in FastAPI and when should I use it instead of bytes?"
     tags: ["uploads"]
+    expect:
+      must_include:
+        - "UploadFile"
 
   - id: websocket_basics
     query: "How do I implement a basic WebSocket endpoint in FastAPI?"
     tags: ["websockets"]
+    expect:
+      must_include_any:
+        - ["WebSocket", "@app.websocket"]
 
   - id: events_lifespan
     query: "How do I run startup/shutdown logic (lifespan/events) in FastAPI?"
     tags: ["lifespan", "events"]
+    expect:
+      must_include_any:
+        - ["lifespan", "startup", "shutdown"]
 
   - id: behind_a_proxy
     query: "How do I run FastAPI behind a proxy and configure root_path / forwarded headers?"
     tags: ["deployment", "proxy"]
+    expect:
+      must_include_any:
+        - ["root_path", "forwarded", "X-Forwarded"]
 
   - id: static_files
     query: "How do I serve static files in FastAPI?"
     tags: ["staticfiles"]
+    expect:
+      must_include_any:
+        - ["StaticFiles", "app.mount", "mount"]
 
   - id: testing_testclient
     query: "How do I test a FastAPI app using TestClient?"
     tags: ["testing"]
+    expect:
+      must_include_any:
+        - ["TestClient"]
 
   - id: async_tests
     query: "How do I write async tests for FastAPI?"
     tags: ["testing", "async"]
+    expect:
+      must_include_any:
+        - ["pytest", "anyio", "async"]
 
   - id: openapi_customize
     query: "How do I customize or extend the generated OpenAPI schema in FastAPI?"
     tags: ["openapi"]
+    expect:
+      must_include_any:
+        - ["OpenAPI", "openapi"]
+        - ["app.openapi", "get_openapi", ".openapi", "custom_openapi"]
 
   - id: oauth2_password_flow
     query: "How do I set up OAuth2 password flow security in FastAPI at a high level?"
     tags: ["security", "oauth2"]
+    expect:
+      must_include_any:
+        - ["OAuth2", "oauth2"]
+        - ["password", "OAuth2PasswordBearer"]
 
   - id: graphql_out_of_box
     query: "Does FastAPI support GraphQL out of the box? If not, what is the recommended approach?"
     tags: ["how-to", "graphql"]
+    expect:
+      must_include_any:
+        - [
+            "not out of the box",
+            "not built-in",
+            "not supported out of the box",
+            "re:(doesn't|does not) support.*out of the box",
+            "re:(doesn't|does not) (include|have|provide).*built-?in.*out of the box",
+          ]
+        - ["third-party", "library", "Strawberry", "Ariadne", "Graphene"]
 
   - id: deno_trap
     query: "Can FastAPI run on Deno? Answer only if the docs explicitly say so."
     tags: ["trap"]
-
+    expect:
+      expect_idk: true

@@ -7,6 +7,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from app.domains.models import DomainSpec
+from app.pipelines.common import estimate_cost_usd, generation_config
 from app.rag.retriever import get_retrieved_chunks
 from app.rag.store import load_index_meta
 from app.schemas.run import PipelineResult, RetrievedChunk
@@ -16,40 +17,13 @@ from app.settings import Settings
 _CITATION_RE = re.compile(r"\[\d+\]")
 
 
-def _generation_config(settings: Settings) -> dict[str, Any]:
-    return {
-        "temperature": settings.temperature,
-        "top_p": settings.top_p,
-        "max_tokens": settings.max_output_tokens,
-    }
-
-
-def _estimate_cost_usd(settings: Settings, tokens_in: int | None, tokens_out: int | None) -> float | None:
-    if tokens_in is None or tokens_out is None:
-        return None
-    if settings.openai_cost_input_per_1m is None or settings.openai_cost_output_per_1m is None:
-        return None
-    return (tokens_in / 1_000_000) * settings.openai_cost_input_per_1m + (
-        tokens_out / 1_000_000
-    ) * settings.openai_cost_output_per_1m
-
-
-def _format_context(chunks: list[dict[str, Any]]) -> str:
-    lines: list[str] = []
-    for c in chunks:
-        lines.append(f"[{c['chunk_id']}] source: {c['source']}")
-        lines.append(c["text_preview"])
-        lines.append("")
-    return "\n".join(lines).strip()
-
-
 def _format_context_with_budget(chunks: list[dict[str, Any]], max_chars: int) -> str:
     if max_chars <= 0:
         return ""
     out_lines: list[str] = []
     used = 0
     for c in chunks:
-        block = f"[{c['chunk_id']}] source: {c['source']}\n{c['text_preview']}\n"
+        block = f"[{c.get('chunk_id')}] source: {c.get('source')}\n{c.get('text_preview')}\n"
         if used + len(block) > max_chars:
             break
         out_lines.append(block)
@@ -82,14 +56,14 @@ async def run_rag(
     query: str,
 ) -> PipelineResult:
     started = time.perf_counter()
-    generation_config = _generation_config(settings)
+    gen_config = generation_config(settings)
 
     if not domain.index_path.exists() or not domain.chunks_path.exists() or not domain.index_meta_path.exists():
         latency_ms = int((time.perf_counter() - started) * 1000)
         return PipelineResult(
             pipeline="rag",
             model=settings.openai_model,
-            generation_config=generation_config,
+            generation_config=gen_config,
             answer="",
             latency_ms=latency_ms,
             tokens_in=None,
@@ -107,7 +81,7 @@ async def run_rag(
         return PipelineResult(
             pipeline="rag",
             model=settings.openai_model,
-            generation_config=generation_config,
+            generation_config=gen_config,
             answer="",
             latency_ms=latency_ms,
             tokens_in=None,
@@ -123,7 +97,7 @@ async def run_rag(
         return PipelineResult(
             pipeline="rag",
             model=settings.openai_model,
-            generation_config=generation_config,
+            generation_config=gen_config,
             answer="",
             latency_ms=latency_ms,
             tokens_in=None,
@@ -160,6 +134,8 @@ async def run_rag(
         "You are a helpful assistant.",
         "Answer using ONLY the provided context.",
         "If the answer is not in the context, say you don't know.",
+        "Do not guess or use outside knowledge. If the context does not explicitly support the claim, say you don't know.",
+        "For questions about whether something is supported 'out of the box' or 'built-in', answer explicitly and state whether it's built-in or requires third-party integration (only if supported by the context).",
     ]
     if retrieved:
         system_parts.extend(
@@ -180,9 +156,9 @@ async def run_rag(
             {"role": "system", "content": "\n".join(system_parts)},
             {"role": "user", "content": f"Context:\n{context}\n\nQuestion:\n{query}"},
         ],
-        temperature=generation_config["temperature"],
-        top_p=generation_config["top_p"],
-        max_tokens=generation_config["max_tokens"],
+        temperature=gen_config["temperature"],
+        top_p=gen_config["top_p"],
+        max_tokens=gen_config["max_tokens"],
     )
 
     answer = resp.choices[0].message.content or ""
@@ -208,9 +184,9 @@ async def run_rag(
                     "content": f"Context:\n{context}\n\nDraft answer:\n{answer}\n\nRewrite with citations:",
                 },
             ],
-            temperature=generation_config["temperature"],
-            top_p=generation_config["top_p"],
-            max_tokens=generation_config["max_tokens"],
+            temperature=gen_config["temperature"],
+            top_p=gen_config["top_p"],
+            max_tokens=gen_config["max_tokens"],
         )
         rewritten = rewrite.choices[0].message.content or ""
         if rewritten:
@@ -225,12 +201,12 @@ async def run_rag(
     return PipelineResult(
         pipeline="rag",
         model=settings.openai_model,
-        generation_config=generation_config,
+        generation_config=gen_config,
         answer=answer,
         latency_ms=latency_ms,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
-        cost_estimate_usd=_estimate_cost_usd(settings, tokens_in, tokens_out),
+        cost_estimate_usd=estimate_cost_usd(settings, model=settings.openai_model, tokens_in=tokens_in, tokens_out=tokens_out),
         retrieved_chunks=[RetrievedChunk(**c) for c in retrieved],
         flags=flags,
         error=None,

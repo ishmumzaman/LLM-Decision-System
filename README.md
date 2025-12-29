@@ -25,6 +25,24 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 ## Regression Suite
 - Query set: `backend/tests/fixtures/mvp_queries.yaml`
 - Runner (backend must be running): `.\.venv\Scripts\python backend/scripts/run_regression.py --base-url http://127.0.0.1:8000`
+  - Include fine-tune: `--pipelines prompt,rag,finetune` (requires a configured fine-tuned model)
+
+## Fine-tuning (Optional)
+This enables a third pipeline: `finetune`.
+
+1. (Optional) Generate a dataset from the domain chunks:
+   - `.\.venv\Scripts\python backend/scripts/fine_tune.py generate --domain fastapi_docs --count 100 --out-yaml backend/finetune/datasets/fastapi_docs_train_gen.yaml`
+2. Convert a dataset YAML to OpenAI JSONL:
+   - `.\.venv\Scripts\python backend/scripts/fine_tune.py prepare --domain fastapi_docs --in-yaml backend/finetune/datasets/fastapi_docs_train_v1.yaml --out-jsonl backend/finetune/out/fastapi_docs_train_v1.jsonl`
+3. Start a fine-tuning job (uploads the JSONL):
+   - `.\.venv\Scripts\python backend/scripts/fine_tune.py start --training-jsonl backend/finetune/out/fastapi_docs_train_v1.jsonl --suffix fastapi_docs --n-epochs auto`
+     - Note: if your base model is `gpt-4o-mini`, the script will automatically use a pinned snapshot (e.g. `gpt-4o-mini-2024-07-18`) because the generic alias may not be fine-tunable.
+4. When the job succeeds, set the returned fine-tuned model id:
+   - Recommended (per-domain): set `finetuned_model: ft:...` in `domains/<domain>/config.yaml`
+   - Fallback (global): `OPENAI_FINETUNED_MODEL=ft:...`
+5. Run comparisons:
+   - UI: toggle “Fine-tuned”
+   - Regression: `.\.venv\Scripts\python backend/scripts/run_regression.py --pipelines prompt,rag,finetune`
 
 ## Frontend (MVP UI)
 1. Install deps: `cd frontend` then `npm install`

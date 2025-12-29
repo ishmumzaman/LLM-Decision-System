@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     openai_embedding_model: str = Field(
         "text-embedding-3-small", validation_alias="OPENAI_EMBEDDING_MODEL"
     )
+    openai_finetuned_model: str | None = Field(default=None, validation_alias="OPENAI_FINETUNED_MODEL")
 
     # Generation defaults (fairness invariant: shared across pipelines per run)
     temperature: float = Field(0.2, validation_alias="GEN_TEMPERATURE")
@@ -54,8 +55,22 @@ class Settings(BaseSettings):
     openai_cost_output_per_1m: float | None = Field(
         default=None, validation_alias="OPENAI_COST_OUTPUT_PER_1M"
     )
+    openai_cost_input_per_1m_finetuned: float | None = Field(
+        default=None, validation_alias="OPENAI_COST_INPUT_PER_1M_FINETUNED"
+    )
+    openai_cost_output_per_1m_finetuned: float | None = Field(
+        default=None, validation_alias="OPENAI_COST_OUTPUT_PER_1M_FINETUNED"
+    )
 
-    @field_validator("openai_cost_input_per_1m", "openai_cost_output_per_1m", "max_run_cost_usd", mode="before")
+    @field_validator(
+        "openai_finetuned_model",
+        "openai_cost_input_per_1m",
+        "openai_cost_output_per_1m",
+        "openai_cost_input_per_1m_finetuned",
+        "openai_cost_output_per_1m_finetuned",
+        "max_run_cost_usd",
+        mode="before",
+    )
     @classmethod
     def _empty_str_to_none(cls, v: object) -> object:
         if v == "":

@@ -10,7 +10,7 @@ domain_prompt_prefix: |
   You are answering questions about FastAPI documentation.
   Prefer authoritative explanations grounded in the docs.
   If you are not sure, say you don't know.
+finetuned_model: ft:gpt-4o-mini-2024-07-18:personal:fastapi-docs-v2:CrxVpvwC
 allowed_file_types:
   - md
 max_docs: 200
-

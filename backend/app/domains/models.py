@@ -14,6 +14,7 @@ class DomainConfig(BaseModel):
     retrieval_k: int = Field(5, gt=0)
     evaluation_rules: list[str] = Field(default_factory=list)
     domain_prompt_prefix: str | None = None
+    finetuned_model: str | None = None
     allowed_file_types: list[str] = Field(default_factory=lambda: ["md", "txt"])
     max_docs: int | None = Field(default=None, gt=0)
 
@@ -29,10 +30,10 @@ class DomainSpec:
     retrieval_k: int
     evaluation_rules: list[str]
     domain_prompt_prefix: str | None
+    finetuned_model: str | None
     allowed_file_types: list[str]
     max_docs: int | None
 
     index_path: Path
     chunks_path: Path
     index_meta_path: Path
-
