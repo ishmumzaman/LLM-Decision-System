@@ -11,6 +11,55 @@ import type {
   SuiteInfo,
 } from './types'
 
+const METRIC_HELP: Record<string, string> = {
+  overall_score:
+    'Composite score from the selected preset (or custom weights).\n' +
+    'Not comparable across runs unless the config hash matches.\n' +
+    'Recommended presets: docs_default for Docs-grounded mode, general_default for General mode.\n' +
+    'Use cost_sensitive / latency_sensitive when optimizing those tradeoffs.\n' +
+    'If hard gates fail, the score is shown as “failed (…)”.',
+  expect:
+    'Deterministic pattern match from the suite case “expect” field.\n' +
+    '1.00 = all expectations satisfied.\n' +
+    'Only available for regression cases (custom queries usually have no expect).',
+  heuristic:
+    'Deterministic rule/penalty score (1.00 - penalties).\n' +
+    'Catches things like overconfident tone; in docs mode also checks RAG citations.\n' +
+    'Good for quick safety checks, not a true correctness metric.',
+  abstention:
+    'Deterministic “IDK is correct here” check.\n' +
+    'Only applies when the case is labeled (e.g. expected_abstain_in_docs / trap).\n' +
+    '1.00 = abstained when expected (docs mode).',
+  latency:
+    'Per-pipeline latency for this run.\n' +
+    'In the composite score it is normalized within the run (lower is better).\n' +
+    'Preset tip: latency_sensitive emphasizes this metric.',
+  cost:
+    'Estimated API cost from token usage and your configured per-1M token rates.\n' +
+    'In the composite score it is normalized within the run (lower is better).\n' +
+    'Preset tip: cost_sensitive emphasizes this metric.',
+  judge:
+    'LLM judge: anonymized + pairwise scoring across criteria.\n' +
+    'Helps break ties when deterministic metrics are saturated.\n' +
+    'Costs $ and adds latency; use a different/stronger model than participants.',
+  evidence:
+    'LLM proxy: checks whether the retrieved context supports the answer’s claims (docs mode).\n' +
+    'Returns a 0–2 support score + unsupported claim list.\n' +
+    'Costs $ and is non-deterministic; treat as a helpful signal.\n' +
+    'Recommended: enable primarily in Docs-grounded mode to validate grounding.',
+  answerability:
+    'LLM proxy: estimates whether the question is answerable without reading the docs.\n' +
+    'Useful for custom queries and dataset curation.\n' +
+    'Costs $ and is non-deterministic; do not treat as ground truth.',
+  gates:
+    'Hard gates: if enabled and a pipeline fails a gate, its composite score becomes “failed (…)”.\n' +
+    'Use gates to enforce safety/grounding requirements in docs mode.',
+  gate_expect_full: 'Requires expect=1.00 for the pipeline (only meaningful for regression cases).',
+  gate_abstention: 'Requires abstention correctness=1.00 when the case expects abstention.',
+  gate_grounding_flags: 'Requires zero grounding flags (docs mode is most meaningful).',
+  gate_hallucination_flags: 'Requires zero hallucination flags (tone/claim safety proxy).',
+} as const
+
 function App() {
   const [backendOk, setBackendOk] = useState<boolean | null>(null)
   const [domains, setDomains] = useState<string[]>([])
@@ -267,7 +316,12 @@ function App() {
                 />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-3">
-                <PipelineToggle label="Judge" checked={useJudge} onChange={setUseJudge} />
+                <PipelineToggle
+                  label="Judge"
+                  info={METRIC_HELP.judge}
+                  checked={useJudge}
+                  onChange={setUseJudge}
+                />
                 <div className="text-xs text-slate-400">
                   Runs an extra model call to score/rank outputs (costs $).
                 </div>
@@ -275,11 +329,13 @@ function App() {
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <PipelineToggle
                   label="Evidence (LLM)"
+                  info={METRIC_HELP.evidence}
                   checked={proxyEvidence}
                   onChange={setProxyEvidence}
                 />
                 <PipelineToggle
                   label="Answerability (LLM)"
+                  info={METRIC_HELP.answerability}
                   checked={proxyAnswerability}
                   onChange={setProxyAnswerability}
                 />
@@ -301,7 +357,11 @@ function App() {
               ) : null}
 
               <div className="mt-4 grid gap-2 sm:max-w-sm">
-                <label className="text-xs font-medium text-slate-300">Overall scoring</label>
+                <label className="text-xs font-medium text-slate-300">
+                  <span className="inline-flex items-center gap-1">
+                    Overall scoring <InfoTip text={METRIC_HELP.overall_score} />
+                  </span>
+                </label>
                 <select
                   value={scoringConfig.preset}
                   onChange={(e) => {
@@ -384,7 +444,10 @@ function App() {
                               }
                               className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-500 disabled:opacity-50"
                             />
-                            {label}
+                            <span className="inline-flex items-center gap-1">
+                              {label}
+                              <InfoTip text={METRIC_HELP[key] ?? ''} />
+                            </span>
                           </label>
                           <input
                             type="number"
@@ -409,7 +472,11 @@ function App() {
                   </div>
 
                   <div className="mt-3 border-t border-slate-800 pt-3">
-                    <div className="text-xs font-medium text-slate-200">Hard gates</div>
+                    <div className="text-xs font-medium text-slate-200">
+                      <span className="inline-flex items-center gap-1">
+                        Hard gates <InfoTip text={METRIC_HELP.gates} />
+                      </span>
+                    </div>
                     <div className="mt-2 grid gap-2">
                       {(
                         [
@@ -435,7 +502,20 @@ function App() {
                             }
                             className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-500 disabled:opacity-50"
                           />
-                          {label}
+                          <span className="inline-flex items-center gap-1">
+                            {label}
+                            <InfoTip
+                              text={
+                                gateKey === 'require_expect_full'
+                                  ? METRIC_HELP.gate_expect_full
+                                  : gateKey === 'require_abstention_correct'
+                                    ? METRIC_HELP.gate_abstention
+                                    : gateKey === 'require_no_grounding_flags'
+                                      ? METRIC_HELP.gate_grounding_flags
+                                      : METRIC_HELP.gate_hallucination_flags
+                              }
+                            />
+                          </span>
                         </label>
                       ))}
                     </div>
@@ -586,14 +666,46 @@ function App() {
                     <thead className="text-slate-400">
                       <tr>
                         <th className="py-1 pr-3">Pipeline</th>
-                        <th className="py-1 pr-3">Score</th>
-                        <th className="py-1 pr-3">Expect</th>
-                        <th className="py-1 pr-3">Heuristic</th>
-                        <th className="py-1 pr-3">Abstain</th>
-                        <th className="py-1 pr-3">Latency</th>
-                        <th className="py-1 pr-3">Cost</th>
-                        <th className="py-1 pr-3">Judge</th>
-                        <th className="py-1 pr-3">Evidence</th>
+                        <th className="py-1 pr-3">
+                          <span className="inline-flex items-center gap-1">
+                            Score <InfoTip text={METRIC_HELP.overall_score} />
+                          </span>
+                        </th>
+                        <th className="py-1 pr-3">
+                          <span className="inline-flex items-center gap-1">
+                            Expect <InfoTip text={METRIC_HELP.expect} />
+                          </span>
+                        </th>
+                        <th className="py-1 pr-3">
+                          <span className="inline-flex items-center gap-1">
+                            Heuristic <InfoTip text={METRIC_HELP.heuristic} />
+                          </span>
+                        </th>
+                        <th className="py-1 pr-3">
+                          <span className="inline-flex items-center gap-1">
+                            Abstain <InfoTip text={METRIC_HELP.abstention} />
+                          </span>
+                        </th>
+                        <th className="py-1 pr-3">
+                          <span className="inline-flex items-center gap-1">
+                            Latency <InfoTip text={METRIC_HELP.latency} />
+                          </span>
+                        </th>
+                        <th className="py-1 pr-3">
+                          <span className="inline-flex items-center gap-1">
+                            Cost <InfoTip text={METRIC_HELP.cost} />
+                          </span>
+                        </th>
+                        <th className="py-1 pr-3">
+                          <span className="inline-flex items-center gap-1">
+                            Judge <InfoTip text={METRIC_HELP.judge} />
+                          </span>
+                        </th>
+                        <th className="py-1 pr-3">
+                          <span className="inline-flex items-center gap-1">
+                            Evidence <InfoTip text={METRIC_HELP.evidence} />
+                          </span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="text-slate-200">
@@ -790,10 +902,12 @@ function StatusPill({ ok }: { ok: boolean | null }) {
 
 function PipelineToggle({
   label,
+  info,
   checked,
   onChange,
 }: {
   label: string
+  info?: string
   checked: boolean
   onChange: (value: boolean) => void
 }) {
@@ -805,8 +919,30 @@ function PipelineToggle({
         onChange={(e) => onChange(e.target.checked)}
         className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-500"
       />
-      {label}
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {info ? <InfoTip text={info} /> : null}
+      </span>
     </label>
+  )
+}
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <span className="relative inline-flex items-center">
+      <span className="group inline-flex items-center">
+        <span
+          title={text}
+          aria-label="Info"
+          className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-600 text-[10px] leading-none text-slate-300"
+        >
+          i
+        </span>
+        <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg border border-slate-700 bg-slate-950 p-2 text-xs text-slate-200 opacity-0 shadow-lg transition group-hover:opacity-100">
+          <span className="whitespace-pre-line">{text}</span>
+        </span>
+      </span>
+    </span>
   )
 }
 
