@@ -110,6 +110,11 @@ function App() {
       .map(([p]) => p)
   }, [pipelines])
 
+  const suitesForDomain = useMemo(() => {
+    if (!suites.length) return []
+    return suites.filter((s) => !s.domain || s.domain === domain)
+  }, [suites, domain])
+
   useEffect(() => {
     let canceled = false
 
@@ -151,11 +156,10 @@ function App() {
 
   useEffect(() => {
     if (querySource !== 'suite') return
-    if (suiteId) return
-    if (suites.length) {
-      setSuiteId(suites[0].id)
-    }
-  }, [querySource, suiteId, suites])
+    if (!suitesForDomain.length) return
+    if (suiteId && suitesForDomain.some((s) => s.id === suiteId)) return
+    setSuiteId(suitesForDomain[0].id)
+  }, [querySource, suiteId, suitesForDomain])
 
   useEffect(() => {
     let canceled = false
@@ -170,9 +174,6 @@ function App() {
         const first = cases[0] || null
         setCaseId(first?.id ?? null)
         if (first) setQuery(first.query)
-        if (typeof resp.domain === 'string' && resp.domain.trim()) {
-          setDomain(resp.domain)
-        }
       } catch (e) {
         if (!canceled) setError(String(e))
       }
@@ -548,13 +549,17 @@ function App() {
                       onChange={(e) => setSuiteId(e.target.value)}
                       className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
                     >
-                      {(suites.length ? suites : suiteId ? [{ id: suiteId, suite: suiteId, cases: 0 }] : []).map(
-                        (s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.id}
-                          </option>
-                        ),
-                      )}
+                      {(
+                        suitesForDomain.length
+                          ? suitesForDomain
+                          : suiteId
+                            ? [{ id: suiteId, suite: suiteId, cases: 0 }]
+                            : []
+                      ).map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.id}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
