@@ -17,11 +17,12 @@ from app.domains.loader import load_domain_spec, load_registry
 from app.eval.expectations import check_expectations
 from app.eval.evaluator import evaluate_results
 from app.eval.judge import judge_run
+from app.eval.proxies import run_proxies
 from app.llm.openai_client import build_openai_client
 from app.pipelines.finetuned import run_finetuned
 from app.pipelines.prompt_only import run_prompt_only
 from app.pipelines.rag import run_rag
-from app.schemas.run import PipelineResult, RunRequest, RunResponse
+from app.schemas.run import CaseMetadata, PipelineResult, RunRequest, RunResponse
 from app.settings import Settings
 from app.logging.run_logger import append_run
 
@@ -57,6 +58,7 @@ async def list_domains() -> dict[str, list[str]]:
 
 
 _SUITE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+_IDK_RE = re.compile(r"\b(i don't know|i do not know|not in (the )?context|unknown)\b", re.IGNORECASE)
 
 
 def _load_suite_file(path: Path) -> dict[str, Any]:
@@ -111,7 +113,17 @@ async def get_suite(suite_id: str) -> dict[str, Any]:
     if isinstance(queries, list):
         for i, q in enumerate(queries):
             if isinstance(q, str):
-                cases.append({"id": f"q{i+1:02d}", "query": q, "tags": [], "expect": {}})
+                cases.append(
+                    {
+                        "id": f"q{i+1:02d}",
+                        "query": q,
+                        "tags": [],
+                        "expect": {},
+                        "answerable_from_general_knowledge": None,
+                        "requires_docs": None,
+                        "expected_abstain_in_docs": None,
+                    }
+                )
                 continue
             if not isinstance(q, dict):
                 continue
@@ -125,8 +137,25 @@ async def get_suite(suite_id: str) -> dict[str, Any]:
             expect = q.get("expect") or {}
             if not isinstance(expect, dict):
                 expect = {}
+            answerable_from_general_knowledge = q.get("answerable_from_general_knowledge")
+            if not isinstance(answerable_from_general_knowledge, bool):
+                answerable_from_general_knowledge = None
+            requires_docs = q.get("requires_docs")
+            if not isinstance(requires_docs, bool):
+                requires_docs = None
+            expected_abstain_in_docs = q.get("expected_abstain_in_docs")
+            if not isinstance(expected_abstain_in_docs, bool):
+                expected_abstain_in_docs = None
             cases.append(
-                {"id": qid, "query": text.strip(), "tags": [str(t) for t in tags], "expect": expect}
+                {
+                    "id": qid,
+                    "query": text.strip(),
+                    "tags": [str(t) for t in tags],
+                    "expect": expect,
+                    "answerable_from_general_knowledge": answerable_from_general_knowledge,
+                    "requires_docs": requires_docs,
+                    "expected_abstain_in_docs": expected_abstain_in_docs,
+                }
             )
 
     return {
@@ -262,9 +291,18 @@ async def run(request: RunRequest) -> RunResponse:
         rule_names = [r for r in rule_names if r != "not_grounded_check"]
     evaluations, summary = evaluate_results(results=results, rule_names=rule_names)
 
+    inferred_case: CaseMetadata | None = request.case
     tags: list[str] = []
+    if request.case is not None:
+        tags = [str(t) for t in (request.case.tags or []) if t is not None]
     if request.client_metadata and isinstance(request.client_metadata.get("tags"), list):
-        tags = [str(t) for t in request.client_metadata.get("tags") if t is not None]
+        meta_tags = [str(t) for t in request.client_metadata.get("tags") if t is not None]
+        tags = sorted(set([*tags, *meta_tags]))
+        if inferred_case is None:
+            inferred_case = CaseMetadata(
+                id=str(request.client_metadata.get("case_id")) if request.client_metadata.get("case_id") else None,
+                tags=tags,
+            )
 
     expect_dict = request.expect.model_dump(exclude_none=True) if request.expect is not None else None
     expect_active = False
@@ -299,6 +337,26 @@ async def run(request: RunRequest) -> RunResponse:
                 summary["winner_by_expect"] = None
                 summary["winner_by_expect_ties"] = winners
 
+    if inferred_case is not None:
+        expected_abstain_in_docs = inferred_case.expected_abstain_in_docs
+        if expected_abstain_in_docs is None and "trap" in tags:
+            expected_abstain_in_docs = True
+        abstention_expected = bool(expected_abstain_in_docs) if request.mode == "docs" else False
+        for p, result in results.items():
+            if result.error is not None:
+                continue
+            answer = result.answer or ""
+            abstained = _IDK_RE.search(answer) is not None
+            abstention_correct = abstained == abstention_expected
+            evaluations[p] = evaluations[p].model_copy(
+                update={
+                    "abstained": bool(abstained),
+                    "abstention_expected": bool(abstention_expected),
+                    "abstention_correct": bool(abstention_correct),
+                    "abstention_score": 1.0 if abstention_correct else 0.0,
+                }
+            )
+
     judge = None
     if request.judge:
         judge = await judge_run(
@@ -325,16 +383,35 @@ async def run(request: RunRequest) -> RunResponse:
                 summary["winner_by_judge"] = None
                 summary["winner_by_judge_ties"] = sorted(near_top)
 
+    proxies = None
+    if request.proxy_evidence or request.proxy_answerability:
+        proxies = await run_proxies(
+            client=_get_client(),
+            settings=settings,
+            mode=request.mode,
+            domain=request.domain,
+            query=request.query,
+            results=results,
+            judge_model=request.judge_model,
+            judge_answer_chars=int(request.judge_answer_chars),
+            judge_chunk_chars=int(request.judge_chunk_chars),
+            proxy_evidence=bool(request.proxy_evidence),
+            proxy_answerability=bool(request.proxy_answerability),
+        )
+
     response = RunResponse(
         run_id=run_id,
         timestamp=datetime.now(timezone.utc),
         domain=request.domain,
         mode=request.mode,
         query=request.query,
+        case=inferred_case,
+        scoring=request.scoring,
         results=results,
         evaluations=evaluations,
         summary_metrics=summary,
         judge=judge,
+        proxies=proxies,
     )
     append_run(settings.run_log_path, response)
     return response

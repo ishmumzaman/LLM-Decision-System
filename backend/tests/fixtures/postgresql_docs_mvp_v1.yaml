@@ -7,6 +7,8 @@ queries:
   - id: what_is_postgresql
     query: "What is PostgreSQL and what is it commonly used for?"
     tags: ["intro"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["PostgreSQL", "postgresql"]
@@ -15,6 +17,8 @@ queries:
   - id: create_table_basics
     query: "How do I create a table in PostgreSQL? Show a minimal example."
     tags: ["sql", "ddl"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["CREATE TABLE"]
@@ -22,6 +26,8 @@ queries:
   - id: primary_key
     query: "How do I define a primary key in PostgreSQL?"
     tags: ["sql", "ddl"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["PRIMARY KEY", "primary key"]
@@ -29,6 +35,8 @@ queries:
   - id: transactions_basics
     query: "What is a transaction in PostgreSQL and how do I use BEGIN/COMMIT?"
     tags: ["transactions"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["BEGIN", "START TRANSACTION"]
@@ -37,6 +45,8 @@ queries:
   - id: create_index
     query: "How do I create an index in PostgreSQL and when would I use one?"
     tags: ["indexing"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["CREATE INDEX"]
@@ -45,6 +55,8 @@ queries:
   - id: explain_analyze
     query: "How do I use EXPLAIN (ANALYZE) to understand query performance?"
     tags: ["performance"]
+    answerable_from_general_knowledge: true
+    requires_docs: true
     expect:
       must_include_any:
         - ["EXPLAIN"]
@@ -53,6 +65,8 @@ queries:
   - id: vacuum_basics
     query: "What does VACUUM do in PostgreSQL?"
     tags: ["maintenance"]
+    answerable_from_general_knowledge: true
+    requires_docs: true
     expect:
       must_include_any:
         - ["VACUUM"]
@@ -61,6 +75,8 @@ queries:
   - id: jsonb_basics
     query: "What is JSONB in PostgreSQL and how is it different from JSON?"
     tags: ["json"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["JSONB", "jsonb"]
@@ -69,6 +85,8 @@ queries:
   - id: psql_connect
     query: "How do I connect to a PostgreSQL database using psql? Give a minimal example."
     tags: ["psql"]
+    answerable_from_general_knowledge: true
+    requires_docs: true
     expect:
       must_include_any:
         - ["psql"]
@@ -76,6 +94,9 @@ queries:
 
   - id: trap_capital_france
     query: "What is the capital of France? Answer only if the PostgreSQL docs explicitly say so."
-    tags: ["trap"]
+    tags: ["trap", "edge_case", "unsupported_claim"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
+    expected_abstain_in_docs: true
     expect:
       expect_idk: true

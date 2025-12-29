@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getDomains, getHealth, getSuite, getSuites, runOnce } from './lib/api'
 import { formatInt, formatIsoTimestamp, formatUsd } from './lib/format'
+import { PRESETS, computeScores, withHash } from './lib/scoring'
 import type {
   EvaluationResult,
   PipelineResult,
@@ -28,11 +29,26 @@ function App() {
   })
   const [useJudge, setUseJudge] = useState(false)
   const [judgeModel, setJudgeModel] = useState('gpt-4o')
+  const [proxyEvidence, setProxyEvidence] = useState(false)
+  const [proxyAnswerability, setProxyAnswerability] = useState(false)
+  const [scoringConfig, setScoringConfig] = useState(() => PRESETS.docs_default.config)
+  const [customScoring, setCustomScoring] = useState(false)
+  const [customScoringAck, setCustomScoringAck] = useState(() => {
+    try {
+      return localStorage.getItem('scoring_custom_ack_v1') === 'true'
+    } catch {
+      return false
+    }
+  })
+  const [showCustomScoringWarning, setShowCustomScoringWarning] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [run, setRun] = useState<RunResponse | null>(null)
   const [history, setHistory] = useState<RunResponse[]>([])
+
+  const scoring = useMemo(() => withHash(scoringConfig), [scoringConfig])
+  const scoreByPipeline = useMemo(() => (run ? computeScores(run, scoring) : null), [run, scoring])
 
   const selectedCase = useMemo(() => {
     if (querySource !== 'suite') return null
@@ -141,8 +157,22 @@ function App() {
         query,
         pipelines: selectedPipelines,
         expect: querySource === 'suite' ? selectedCase?.expect ?? null : null,
+        case:
+          querySource === 'suite' && selectedCase
+            ? {
+                id: selectedCase.id,
+                tags: selectedCase.tags,
+                answerable_from_general_knowledge:
+                  selectedCase.answerable_from_general_knowledge ?? null,
+                requires_docs: selectedCase.requires_docs ?? null,
+                expected_abstain_in_docs: selectedCase.expected_abstain_in_docs ?? null,
+              }
+            : null,
         judge: useJudge,
         judge_model: useJudge ? judgeModel.trim() || null : null,
+        proxy_evidence: proxyEvidence,
+        proxy_answerability: proxyAnswerability,
+        scoring,
         run_id: crypto.randomUUID(),
         client_metadata:
           querySource === 'suite' && suiteId && selectedCase
@@ -242,6 +272,19 @@ function App() {
                   Runs an extra model call to score/rank outputs (costs $).
                 </div>
               </div>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <PipelineToggle
+                  label="Evidence (LLM)"
+                  checked={proxyEvidence}
+                  onChange={setProxyEvidence}
+                />
+                <PipelineToggle
+                  label="Answerability (LLM)"
+                  checked={proxyAnswerability}
+                  onChange={setProxyAnswerability}
+                />
+                <div className="text-xs text-slate-400">Extra eval calls (costs $).</div>
+              </div>
               {useJudge ? (
                 <div className="mt-2 grid gap-2 sm:max-w-sm">
                   <label className="text-xs font-medium text-slate-300">Judge model</label>
@@ -256,6 +299,149 @@ function App() {
                   </div>
                 </div>
               ) : null}
+
+              <div className="mt-4 grid gap-2 sm:max-w-sm">
+                <label className="text-xs font-medium text-slate-300">Overall scoring</label>
+                <select
+                  value={scoringConfig.preset}
+                  onChange={(e) => {
+                    const preset = e.target.value as keyof typeof PRESETS
+                    setScoringConfig(PRESETS[preset].config)
+                    setCustomScoring(false)
+                  }}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
+                >
+                  {Object.entries(PRESETS).map(([id, p]) => (
+                    <option key={id} value={id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="text-xs text-slate-400">
+                  config hash: <span className="font-mono">{scoring.hash}</span>{' '}
+                  {scoring.is_custom ? (
+                    <span className="text-rose-300">custom (non-comparable)</span>
+                  ) : (
+                    <span className="text-slate-400">preset</span>
+                  )}
+                </div>
+
+                <label className="mt-1 inline-flex cursor-pointer select-none items-center gap-2 text-xs text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={customScoring}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                      if (next) {
+                        if (!customScoringAck) {
+                          setShowCustomScoringWarning(true)
+                          return
+                        }
+                        setCustomScoring(true)
+                        return
+                      }
+                      setCustomScoring(false)
+                      setScoringConfig(PRESETS[scoringConfig.preset].config)
+                    }}
+                    className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-500"
+                  />
+                  Advanced: custom scoring (non-comparable)
+                </label>
+
+                <details className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                  <summary className="cursor-pointer text-xs font-medium text-slate-200">
+                    Metrics board
+                  </summary>
+                  <div className="mt-2 grid gap-2">
+                    {(
+                      [
+                        ['expect', 'Expect score (deterministic)'],
+                        ['heuristic', 'Heuristic score (rules/penalties)'],
+                        ['abstention', 'Abstention correctness (deterministic)'],
+                        ['latency', 'Latency (normalized, lower is better)'],
+                        ['cost', 'Cost (normalized, lower is better)'],
+                        ['judge', 'Pairwise judge score (LLM)'],
+                        ['evidence', 'Evidence support score (LLM)'],
+                      ] as const
+                    ).map(([key, label]) => {
+                      const setting = scoringConfig.metrics[key]
+                      return (
+                        <div key={key} className="flex items-center justify-between gap-3">
+                          <label className="flex items-center gap-2 text-xs text-slate-200">
+                            <input
+                              type="checkbox"
+                              checked={setting.enabled}
+                              disabled={!customScoring}
+                              onChange={(e) =>
+                                setScoringConfig((cfg) => ({
+                                  ...cfg,
+                                  metrics: {
+                                    ...cfg.metrics,
+                                    [key]: { ...cfg.metrics[key], enabled: e.target.checked },
+                                  },
+                                }))
+                              }
+                              className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-500 disabled:opacity-50"
+                            />
+                            {label}
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.5}
+                            value={setting.weight}
+                            disabled={!customScoring || !setting.enabled}
+                            onChange={(e) =>
+                              setScoringConfig((cfg) => ({
+                                ...cfg,
+                                metrics: {
+                                  ...cfg.metrics,
+                                  [key]: { ...cfg.metrics[key], weight: Number(e.target.value) || 0 },
+                                },
+                              }))
+                            }
+                            className="w-20 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 outline-none focus:border-slate-500 disabled:opacity-50"
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="mt-3 border-t border-slate-800 pt-3">
+                    <div className="text-xs font-medium text-slate-200">Hard gates</div>
+                    <div className="mt-2 grid gap-2">
+                      {(
+                        [
+                          ['require_expect_full', 'Require full expect match (expect=1.0)'],
+                          ['require_abstention_correct', 'Require abstention correctness (1.0)'],
+                          ['require_no_grounding_flags', 'Require no grounding flags'],
+                          ['require_no_hallucination_flags', 'Require no hallucination flags'],
+                        ] as const
+                      ).map(([gateKey, label]) => (
+                        <label
+                          key={gateKey}
+                          className="flex cursor-pointer select-none items-center gap-2 text-xs text-slate-200"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={scoringConfig.gates[gateKey]}
+                            disabled={!customScoring}
+                            onChange={(e) =>
+                              setScoringConfig((cfg) => ({
+                                ...cfg,
+                                gates: { ...cfg.gates, [gateKey]: e.target.checked },
+                              }))
+                            }
+                            className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-500 disabled:opacity-50"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              </div>
             </div>
           </div>
 
@@ -359,6 +545,102 @@ function App() {
               <SummaryBar summary={run.summary_metrics} />
             </div>
 
+            {scoreByPipeline ? (
+              <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-xs text-slate-300">
+                    {scoring.is_custom
+                      ? 'User score (custom)'
+                      : `Overall score (preset: ${scoringConfig.preset})`}{' '}
+                    <span className="text-slate-500">·</span>{' '}
+                    <span className="font-mono text-slate-400">{scoring.hash}</span>
+                    {(() => {
+                      const runHash = (run.scoring as any)?.hash as string | undefined
+                      if (!runHash) return null
+                      if (runHash === scoring.hash) return null
+                      return <span className="ml-2 text-rose-200">not comparable (run cfg {runHash})</span>
+                    })()}
+                  </div>
+                  {scoring.is_custom ? (
+                    <div className="text-xs text-rose-200">
+                      Custom scoring is non-comparable across runs unless hashes match.
+                    </div>
+                  ) : null}
+                </div>
+
+                {run.proxies?.answerability ? (
+                  <div className="mt-2 text-xs text-slate-400">
+                    answerability (LLM):{' '}
+                    <span className="text-slate-200">
+                      {run.proxies.answerability.label ?? 'unknown'}
+                    </span>
+                    {typeof run.proxies.answerability.confidence === 'number'
+                      ? ` (${run.proxies.answerability.confidence.toFixed(2)})`
+                      : null}
+                    {run.proxies.answerability.error ? ` · error: ${run.proxies.answerability.error}` : null}
+                  </div>
+                ) : null}
+
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-xs">
+                    <thead className="text-slate-400">
+                      <tr>
+                        <th className="py-1 pr-3">Pipeline</th>
+                        <th className="py-1 pr-3">Score</th>
+                        <th className="py-1 pr-3">Expect</th>
+                        <th className="py-1 pr-3">Heuristic</th>
+                        <th className="py-1 pr-3">Abstain</th>
+                        <th className="py-1 pr-3">Latency</th>
+                        <th className="py-1 pr-3">Cost</th>
+                        <th className="py-1 pr-3">Judge</th>
+                        <th className="py-1 pr-3">Evidence</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-slate-200">
+                      {selectedPipelines.map((p) => {
+                        const r = run.results[p]
+                        const e = run.evaluations[p]
+                        const score = scoreByPipeline[p]
+                        const judgeScore = run.judge?.scores?.[p]
+                        const evidenceScore = run.proxies?.evidence_support?.[p]?.support_score
+                        return (
+                          <tr key={p} className="border-t border-slate-900/60">
+                            <td className="py-1 pr-3 font-medium text-slate-100">{p}</td>
+                            <td className="py-1 pr-3">
+                              {score?.score_0_10 != null
+                                ? score.score_0_10.toFixed(2)
+                                : score?.failed_gates?.length
+                                  ? `failed (${score.failed_gates.join(', ')})`
+                                  : 'n/a'}
+                            </td>
+                            <td className="py-1 pr-3">
+                              {typeof e?.expect_score === 'number' ? e.expect_score.toFixed(2) : '—'}
+                            </td>
+                            <td className="py-1 pr-3">
+                              {typeof e?.quality_score === 'number' ? e.quality_score.toFixed(2) : '—'}
+                            </td>
+                            <td className="py-1 pr-3">
+                              {typeof e?.abstention_score === 'number' ? e.abstention_score.toFixed(2) : '—'}
+                            </td>
+                            <td className="py-1 pr-3">{r?.latency_ms != null ? `${r.latency_ms}ms` : '—'}</td>
+                            <td className="py-1 pr-3">
+                              {typeof r?.cost_estimate_usd === 'number' ? formatUsd(r.cost_estimate_usd) : '—'}
+                            </td>
+                            <td className="py-1 pr-3">
+                              {typeof judgeScore === 'number' ? judgeScore.toFixed(2) : '—'}
+                            </td>
+                            <td className="py-1 pr-3">
+                              {typeof evidenceScore === 'number' ? evidenceScore.toFixed(2) : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+
             {run.judge ? (
               <details className="mt-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
                 <summary className="cursor-pointer text-xs text-slate-300">Judge details</summary>
@@ -392,6 +674,7 @@ function App() {
                   evaluation={run.evaluations[p]}
                   mode={run.mode}
                   judge={run.judge ?? null}
+                  proxies={run.proxies ?? null}
                 />
               ))}
             </div>
@@ -425,7 +708,20 @@ function App() {
                     <div className="text-xs text-slate-400">{formatIsoTimestamp(h.timestamp)}</div>
                   </div>
                   <div className="shrink-0 text-xs text-slate-400">
-                    {h.domain} <span className="text-slate-600">·</span> {h.mode}
+                    <div>
+                      {h.domain} <span className="text-slate-600">·</span> {h.mode}
+                    </div>
+                    {(() => {
+                      const hHash = (h.scoring as any)?.hash as string | undefined
+                      if (!hHash) return null
+                      const mismatch = hHash !== scoring.hash
+                      return (
+                        <div className={mismatch ? 'text-rose-200' : 'text-slate-500'}>
+                          cfg {hHash}
+                          {mismatch ? ' (not comparable)' : ''}
+                        </div>
+                      )
+                    })()}
                   </div>
                 </button>
               ))
@@ -433,6 +729,43 @@ function App() {
           </div>
         </div>
       </div>
+
+      {showCustomScoringWarning ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-950 p-5">
+            <div className="text-sm font-semibold text-slate-100">Enable custom scoring?</div>
+            <div className="mt-2 text-sm text-rose-200">
+              Warning: custom “overall score” can create false precision and destroy comparability across runs. Only
+              compare results when the scoring config hash matches.
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCustomScoringWarning(false)}
+                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 hover:border-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomScoringAck(true)
+                  try {
+                    localStorage.setItem('scoring_custom_ack_v1', 'true')
+                  } catch {
+                    // ignore
+                  }
+                  setCustomScoring(true)
+                  setShowCustomScoringWarning(false)
+                }}
+                className="rounded-lg bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-500"
+              >
+                I understand — enable
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -508,12 +841,14 @@ function PipelineCard({
   evaluation,
   mode,
   judge,
+  proxies,
 }: {
   pipeline: string
   result: PipelineResult | undefined
   evaluation: EvaluationResult | undefined
   mode: 'docs' | 'general'
   judge: RunResponse['judge'] | null
+  proxies: RunResponse['proxies'] | null
 }) {
   if (!result) {
     return (
@@ -538,8 +873,12 @@ function PipelineCard({
   const ruleBreakdown = evaluation?.rule_breakdown || []
   const expectScore = evaluation?.expect_score ?? null
   const expectDetails = evaluation?.expect_details ?? null
+  const abstentionScore = evaluation?.abstention_score ?? null
+  const abstentionExpected = evaluation?.abstention_expected ?? null
+  const abstained = evaluation?.abstained ?? null
   const judgeScore = typeof judge?.scores?.[pipeline] === 'number' ? judge.scores[pipeline] : null
   const judgeCriteria = judge?.criteria?.[pipeline] ?? null
+  const evidence = proxies?.evidence_support?.[pipeline] ?? null
 
   const pipelineFlags = Object.keys(result.flags || {})
   const hallucFlags = evaluation?.hallucination_flags || []
@@ -557,7 +896,13 @@ function PipelineCard({
           {expectScore == null ? null : (
             <Chip label={`expect: ${expectScore.toFixed(2)}`} tone="blue" />
           )}
+          {abstentionScore == null ? null : (
+            <Chip label={`abstain: ${abstentionScore.toFixed(2)}`} tone="amber" />
+          )}
           {judgeScore == null ? null : <Chip label={`judge: ${judgeScore.toFixed(1)}/10`} tone="blue" />}
+          {typeof evidence?.support_score === 'number' ? (
+            <Chip label={`evidence: ${evidence.support_score.toFixed(1)}/2`} tone="amber" />
+          ) : null}
           <Chip label={`${latency}ms`} tone="slate" />
           <Chip label={`in ${formatInt(tokensIn)} · out ${formatInt(tokensOut)}`} tone="slate" />
           <Chip label={formatUsd(costUsd)} tone="slate" />
@@ -634,6 +979,56 @@ function PipelineCard({
               </div>
             </details>
           )}
+
+          {abstentionScore == null ? null : (
+            <details className="mt-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
+              <summary className="cursor-pointer text-xs text-slate-300">
+                Abstention correctness: {abstentionScore.toFixed(2)}
+              </summary>
+              <div className="mt-2 grid gap-1 text-xs text-slate-200">
+                <div>
+                  <span className="font-medium text-slate-100">expected abstain</span>{' '}
+                  <span className="text-slate-400">
+                    {abstentionExpected == null ? '—' : abstentionExpected ? 'true' : 'false'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-100">abstained</span>{' '}
+                  <span className="text-slate-400">
+                    {abstained == null ? '—' : abstained ? 'true' : 'false'}
+                  </span>
+                </div>
+              </div>
+            </details>
+          )}
+
+          {evidence ? (
+            <details className="mt-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
+              <summary className="cursor-pointer text-xs text-slate-300">Evidence support (LLM)</summary>
+              {evidence.error ? (
+                <div className="mt-2 text-xs text-rose-200">Evidence error: {evidence.error}</div>
+              ) : (
+                <div className="mt-2 grid gap-1 text-xs text-slate-200">
+                  {typeof evidence.support_score === 'number' ? (
+                    <div>
+                      <span className="font-medium text-slate-100">support score</span>{' '}
+                      <span className="text-slate-400">{evidence.support_score.toFixed(1)}/2</span>
+                    </div>
+                  ) : null}
+                  {evidence.rationale ? <div className="text-slate-400">{evidence.rationale}</div> : null}
+                  {evidence.unsupported_claims?.length ? (
+                    <div className="text-slate-400">
+                      <span className="font-medium text-slate-100">unsupported</span>{' '}
+                      {evidence.unsupported_claims.join(' · ')}
+                    </div>
+                  ) : null}
+                  {!(evidence.unsupported_claims?.length || evidence.rationale) ? (
+                    <div className="text-slate-400">No evidence notes.</div>
+                  ) : null}
+                </div>
+              )}
+            </details>
+          ) : null}
 
           {judgeScore == null ? null : (
             <details className="mt-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">

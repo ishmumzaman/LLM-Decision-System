@@ -7,6 +7,8 @@ queries:
   - id: what_is_fastapi
     query: "What is FastAPI and what are its main features?"
     tags: ["intro"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["type hint", "typing", "type annotation"]
@@ -15,6 +17,8 @@ queries:
   - id: quickstart_first_steps
     query: "How do I run a minimal FastAPI app locally (basic 'Hello World')?"
     tags: ["tutorial", "getting-started"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["uvicorn", "fastapi dev", "fastapi run"]
@@ -22,6 +26,8 @@ queries:
   - id: path_params_vs_query_params
     query: "In FastAPI, how do path parameters differ from query parameters? Give a short example."
     tags: ["routing"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["path parameter", "/items/{", "{item_id}"]
@@ -30,6 +36,8 @@ queries:
   - id: request_body_pydantic
     query: "How do I declare a request body using a Pydantic model in FastAPI?"
     tags: ["request-body", "pydantic"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["BaseModel", "Pydantic"]
@@ -37,6 +45,8 @@ queries:
   - id: response_model
     query: "How do I use response_model to shape and validate responses?"
     tags: ["response", "pydantic"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include:
         - "response_model"
@@ -44,6 +54,8 @@ queries:
   - id: http_exception
     query: "How do I return an error using HTTPException in FastAPI?"
     tags: ["errors"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include:
         - "HTTPException"
@@ -51,6 +63,8 @@ queries:
   - id: dependencies_basics
     query: "How do FastAPI dependencies work with Depends()? Explain briefly with a minimal example."
     tags: ["dependencies"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include:
         - "Depends"
@@ -58,6 +72,8 @@ queries:
   - id: dependencies_yield
     query: "How do I create a dependency that uses yield (cleanup/teardown) in FastAPI?"
     tags: ["dependencies", "yield"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["yield"]
@@ -66,6 +82,8 @@ queries:
   - id: apirouter_include
     query: "How do I create an APIRouter and include it in the main FastAPI app?"
     tags: ["routing", "apirouter"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["APIRouter"]
@@ -74,6 +92,8 @@ queries:
   - id: cors_middleware
     query: "How do I add CORS middleware in FastAPI?"
     tags: ["middleware", "cors"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["CORSMiddleware", "CORS"]
@@ -81,6 +101,8 @@ queries:
   - id: custom_middleware
     query: "How do I add custom middleware using @app.middleware('http') in FastAPI?"
     tags: ["middleware"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["@app.middleware", "middleware('http')", "middleware(\"http\")"]
@@ -88,6 +110,8 @@ queries:
   - id: background_tasks
     query: "How do I run a background task after returning a response in FastAPI?"
     tags: ["background-tasks"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["BackgroundTasks", "background task"]
@@ -95,6 +119,8 @@ queries:
   - id: cookies_and_headers
     query: "How do I read and set cookies and headers in FastAPI?"
     tags: ["headers", "cookies"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["Cookie", "cookies"]
@@ -103,6 +129,8 @@ queries:
   - id: forms_and_files
     query: "How do I accept form data and file uploads in FastAPI?"
     tags: ["forms", "uploads"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["Form", "form data"]
@@ -111,6 +139,8 @@ queries:
   - id: uploadfile
     query: "What is UploadFile in FastAPI and when should I use it instead of bytes?"
     tags: ["uploads"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include:
         - "UploadFile"
@@ -118,6 +148,8 @@ queries:
   - id: websocket_basics
     query: "How do I implement a basic WebSocket endpoint in FastAPI?"
     tags: ["websockets"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["WebSocket", "@app.websocket"]
@@ -125,6 +157,8 @@ queries:
   - id: events_lifespan
     query: "How do I run startup/shutdown logic (lifespan/events) in FastAPI?"
     tags: ["lifespan", "events"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["lifespan", "startup", "shutdown"]
@@ -132,6 +166,8 @@ queries:
   - id: behind_a_proxy
     query: "How do I run FastAPI behind a proxy and configure root_path / forwarded headers?"
     tags: ["deployment", "proxy"]
+    answerable_from_general_knowledge: true
+    requires_docs: true
     expect:
       must_include_any:
         - ["root_path", "forwarded", "X-Forwarded"]
@@ -139,6 +175,8 @@ queries:
   - id: static_files
     query: "How do I serve static files in FastAPI?"
     tags: ["staticfiles"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["StaticFiles", "app.mount", "mount"]
@@ -146,6 +184,8 @@ queries:
   - id: testing_testclient
     query: "How do I test a FastAPI app using TestClient?"
     tags: ["testing"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["TestClient"]
@@ -153,6 +193,8 @@ queries:
   - id: async_tests
     query: "How do I write async tests for FastAPI?"
     tags: ["testing", "async"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["pytest", "anyio", "async"]
@@ -160,6 +202,8 @@ queries:
   - id: openapi_customize
     query: "How do I customize or extend the generated OpenAPI schema in FastAPI?"
     tags: ["openapi"]
+    answerable_from_general_knowledge: true
+    requires_docs: true
     expect:
       must_include_any:
         - ["OpenAPI", "openapi"]
@@ -168,6 +212,8 @@ queries:
   - id: oauth2_password_flow
     query: "How do I set up OAuth2 password flow security in FastAPI at a high level?"
     tags: ["security", "oauth2"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["OAuth2", "oauth2"]
@@ -176,6 +222,8 @@ queries:
   - id: graphql_out_of_box
     query: "Does FastAPI support GraphQL out of the box? If not, what is the recommended approach?"
     tags: ["how-to", "graphql"]
+    answerable_from_general_knowledge: true
+    requires_docs: true
     expect:
       must_include_any:
         - [
@@ -189,6 +237,9 @@ queries:
 
   - id: deno_trap
     query: "Can FastAPI run on Deno? Answer only if the docs explicitly say so."
-    tags: ["trap"]
+    tags: ["trap", "edge_case", "unsupported_claim"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
+    expected_abstain_in_docs: true
     expect:
       expect_idk: true

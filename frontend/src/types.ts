@@ -22,6 +22,9 @@ export type SuiteCase = {
   query: string
   tags: string[]
   expect: ExpectationSpec
+  answerable_from_general_knowledge?: boolean | null
+  requires_docs?: boolean | null
+  expected_abstain_in_docs?: boolean | null
 }
 
 export type SuitesResponse = { suites: SuiteInfo[] }
@@ -70,9 +73,21 @@ export type EvaluationResult = {
     missing?: string[]
     forbidden?: string[]
   } | null
+  abstained?: boolean | null
+  abstention_expected?: boolean | null
+  abstention_correct?: boolean | null
+  abstention_score?: number | null
   hallucination_flags: string[]
   grounding_flags: string[]
   notes?: string | null
+}
+
+export type CaseMetadata = {
+  id?: string | null
+  tags: string[]
+  answerable_from_general_knowledge?: boolean | null
+  requires_docs?: boolean | null
+  expected_abstain_in_docs?: boolean | null
 }
 
 export type RunResponse = {
@@ -81,6 +96,8 @@ export type RunResponse = {
   domain: string
   mode: 'docs' | 'general'
   query: string
+  case?: CaseMetadata | null
+  scoring?: Record<string, unknown> | null
   results: Record<string, PipelineResult>
   evaluations: Record<string, EvaluationResult>
   summary_metrics: Record<string, unknown>
@@ -96,6 +113,30 @@ export type RunResponse = {
     cost_estimate_usd?: number | null
     error?: string | null
   } | null
+  proxies?: {
+    answerability?: {
+      label?: 'general' | 'requires_docs' | 'unsupported' | 'unknown' | null
+      answerable_without_docs?: boolean | null
+      confidence?: number | null
+      rationale?: string | null
+      error?: string | null
+    } | null
+    evidence_support?: Record<
+      string,
+      {
+        support_score?: number | null
+        unsupported_claims: string[]
+        rationale?: string | null
+        error?: string | null
+      }
+    >
+    model?: string | null
+    latency_ms?: number | null
+    tokens_in?: number | null
+    tokens_out?: number | null
+    cost_estimate_usd?: number | null
+    error?: string | null
+  } | null
 }
 
 export type RunRequest = {
@@ -104,8 +145,12 @@ export type RunRequest = {
   mode: 'docs' | 'general'
   pipelines: string[]
   expect?: ExpectationSpec | null
+  case?: CaseMetadata | null
   judge?: boolean
   judge_model?: string | null
+  proxy_evidence?: boolean
+  proxy_answerability?: boolean
+  scoring?: Record<string, unknown> | null
   run_id?: string
   client_metadata?: Record<string, unknown> | null
 }

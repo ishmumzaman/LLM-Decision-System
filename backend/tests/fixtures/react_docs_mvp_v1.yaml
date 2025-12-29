@@ -7,6 +7,8 @@ queries:
   - id: what_is_react
     query: "What is React and what is it used for?"
     tags: ["intro"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["component", "components"]
@@ -15,6 +17,8 @@ queries:
   - id: jsx_basics
     query: "What is JSX in React? Show a tiny example."
     tags: ["jsx"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["JSX"]
@@ -23,6 +27,8 @@ queries:
   - id: props_vs_state
     query: "In React, what's the difference between props and state?"
     tags: ["state", "props"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["props"]
@@ -31,6 +37,8 @@ queries:
   - id: use_state
     query: "How do I use useState to manage state in a function component?"
     tags: ["hooks", "state"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["useState"]
@@ -39,6 +47,8 @@ queries:
   - id: use_effect
     query: "When should I use useEffect and how does the dependency array work?"
     tags: ["hooks", "effects"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["useEffect"]
@@ -47,6 +57,8 @@ queries:
   - id: effect_cleanup
     query: "How do I clean up an effect in React (e.g., unsubscribe a listener)?"
     tags: ["hooks", "effects"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["return", "cleanup"]
@@ -55,6 +67,8 @@ queries:
   - id: controlled_input
     query: "What is a controlled input in React and how do I implement one?"
     tags: ["forms"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["controlled"]
@@ -63,6 +77,8 @@ queries:
   - id: keys_in_lists
     query: "Why do I need keys when rendering lists in React? What makes a good key?"
     tags: ["lists"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["key", "keys"]
@@ -71,6 +87,8 @@ queries:
   - id: conditional_rendering
     query: "How do I conditionally render elements in React?"
     tags: ["rendering"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["&&", "ternary", "?:", "if"]
@@ -78,6 +96,8 @@ queries:
   - id: lifting_state_up
     query: "What does it mean to lift state up in React, and when should I do it?"
     tags: ["state"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["lift", "lifting state"]
@@ -86,6 +106,8 @@ queries:
   - id: context_basics
     query: "How do I pass data deeply without prop drilling in React?"
     tags: ["context"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["Context", "createContext"]
@@ -94,6 +116,8 @@ queries:
   - id: use_reducer
     query: "When should I use useReducer instead of useState?"
     tags: ["hooks", "state"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["useReducer"]
@@ -102,6 +126,8 @@ queries:
   - id: custom_hooks
     query: "What is a custom hook and when should I create one?"
     tags: ["hooks"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["custom hook", "custom hooks"]
@@ -110,6 +136,8 @@ queries:
   - id: use_memo_vs_use_callback
     query: "What's the difference between useMemo and useCallback?"
     tags: ["hooks", "performance"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["useMemo"]
@@ -118,6 +146,8 @@ queries:
   - id: refs_use_ref
     query: "How do I reference a DOM element in React?"
     tags: ["refs"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["useRef"]
@@ -126,6 +156,8 @@ queries:
   - id: strict_mode
     query: "What is React Strict Mode and why can effects run twice in development?"
     tags: ["dev"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
     expect:
       must_include_any:
         - ["StrictMode", "strict mode"]
@@ -134,6 +166,8 @@ queries:
   - id: create_root
     query: "How do I render a React app in the browser with createRoot?"
     tags: ["react-dom"]
+    answerable_from_general_knowledge: true
+    requires_docs: true
     expect:
       must_include_any:
         - ["createRoot"]
@@ -142,13 +176,17 @@ queries:
   - id: server_components_basics
     query: "At a high level, what are React Server Components?"
     tags: ["rsc"]
+    answerable_from_general_knowledge: true
+    requires_docs: true
     expect:
       must_include_any:
         - ["Server Components", "server components", "RSC"]
 
   - id: trap_deno
     query: "Can React run on Deno? Answer only if the docs explicitly say so."
-    tags: ["trap"]
+    tags: ["trap", "edge_case", "unsupported_claim"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
+    expected_abstain_in_docs: true
     expect:
       expect_idk: true
-

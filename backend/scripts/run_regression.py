@@ -22,6 +22,9 @@ class QueryCase:
     query: str
     tags: list[str]
     expect: dict[str, Any]
+    answerable_from_general_knowledge: bool | None = None
+    requires_docs: bool | None = None
+    expected_abstain_in_docs: bool | None = None
 
 
 _IDK_RE = re.compile(r"\b(i don't know|i do not know|not in (the )?context|unknown)\b", re.IGNORECASE)
@@ -163,7 +166,26 @@ def _load_suite(path: Path) -> tuple[str, str | None, list[QueryCase]]:
         expect = q.get("expect") or {}
         if not isinstance(expect, dict):
             expect = {}
-        cases.append(QueryCase(id=qid, query=text.strip(), tags=[str(t) for t in tags], expect=expect))
+        answerable_from_general_knowledge = q.get("answerable_from_general_knowledge")
+        if not isinstance(answerable_from_general_knowledge, bool):
+            answerable_from_general_knowledge = None
+        requires_docs = q.get("requires_docs")
+        if not isinstance(requires_docs, bool):
+            requires_docs = None
+        expected_abstain_in_docs = q.get("expected_abstain_in_docs")
+        if not isinstance(expected_abstain_in_docs, bool):
+            expected_abstain_in_docs = None
+        cases.append(
+            QueryCase(
+                id=qid,
+                query=text.strip(),
+                tags=[str(t) for t in tags],
+                expect=expect,
+                answerable_from_general_knowledge=answerable_from_general_knowledge,
+                requires_docs=requires_docs,
+                expected_abstain_in_docs=expected_abstain_in_docs,
+            )
+        )
 
     return suite_name, domain, cases
 
@@ -304,6 +326,16 @@ def main() -> int:
         help="Judge model (default: OPENAI_MODEL from backend settings)",
     )
     parser.add_argument(
+        "--proxy-evidence",
+        action="store_true",
+        help="Run LLM-based evidence support checks (docs mode only; costs $).",
+    )
+    parser.add_argument(
+        "--proxy-answerability",
+        action="store_true",
+        help="Run LLM-based 'answerable without docs' estimation (costs $).",
+    )
+    parser.add_argument(
         "--judge-answer-chars",
         type=int,
         default=2500,
@@ -378,6 +410,7 @@ def main() -> int:
 
     started = time.perf_counter()
     rows: list[dict[str, Any]] = []
+    case_rows: list[tuple[QueryCase, dict[str, Any]]] = []
     run_stamp = _utc_stamp()
 
     try:
@@ -388,8 +421,12 @@ def main() -> int:
         winners_rank: dict[str, int] = {}
         expect_scores: dict[str, list[float]] = {p: [] for p in pipelines}
         expect_failures: dict[str, int] = {p: 0 for p in pipelines}
+        abstention_scores: dict[str, list[float]] = {p: [] for p in pipelines}
+        abstention_failures: dict[str, int] = {p: 0 for p in pipelines}
         judge_scores: dict[str, list[float]] = {p: [] for p in pipelines}
         judge_winners: dict[str, int] = {}
+        delta_rag_vs_prompt: list[int] = []
+        delta_rag_vs_prompt_by_tag: dict[str, list[int]] = {}
 
         for i, c in enumerate(cases, start=1):
             payload = {
@@ -398,9 +435,20 @@ def main() -> int:
                 "mode": str(args.mode),
                 "pipelines": pipelines,
                 "expect": c.expect or None,
+                "case": {
+                    "id": c.id,
+                    "tags": c.tags,
+                    "answerable_from_general_knowledge": c.answerable_from_general_knowledge,
+                    "requires_docs": c.requires_docs,
+                    "expected_abstain_in_docs": c.expected_abstain_in_docs,
+                },
                 "run_id": f"regression:{suite_name}:{run_stamp}:{i:03d}:{c.id}",
                 "client_metadata": {"suite": suite_name, "case_id": c.id, "tags": c.tags},
             }
+            if args.proxy_evidence:
+                payload["proxy_evidence"] = True
+            if args.proxy_answerability:
+                payload["proxy_answerability"] = True
             if args.judge:
                 payload["judge"] = True
                 if args.judge_model:
@@ -415,6 +463,7 @@ def main() -> int:
                 continue
 
             rows.append(resp)
+            case_rows.append((c, resp))
             if out_f is not None:
                 out_f.write(json.dumps(resp) + "\n")
 
@@ -433,6 +482,13 @@ def main() -> int:
                 r = results.get(p) or {}
                 e = evals.get(p) or {}
                 ans = str(r.get("answer") or "")
+
+                abst = e.get("abstention_score")
+                if isinstance(abst, (int, float)):
+                    abstention_scores[p].append(float(abst))
+                    if float(abst) < 1.0:
+                        abstention_failures[p] = abstention_failures.get(p, 0) + 1
+
                 expect = dict(c.expect or {})
                 if "trap" in c.tags and "expect_idk" not in expect:
                     expect["expect_idk"] = True
@@ -449,6 +505,24 @@ def main() -> int:
                                 file=sys.stderr,
                             )
                 ranked.append((p, _rank_key(result=r, evaluation=e, expectation_score=exp_score)))
+
+            rank_keys = {p: k for p, k in ranked}
+            if "rag" in rank_keys and "prompt" in rank_keys:
+                d = 0
+                if rank_keys["rag"] > rank_keys["prompt"]:
+                    d = 1
+                elif rank_keys["prompt"] > rank_keys["rag"]:
+                    d = -1
+                delta_rag_vs_prompt.append(d)
+                tags_for_case = set(c.tags or [])
+                if c.requires_docs is True:
+                    tags_for_case.add("requires_docs")
+                if c.answerable_from_general_knowledge is True:
+                    tags_for_case.add("answerable_general")
+                if c.expected_abstain_in_docs is True:
+                    tags_for_case.add("expected_abstain_in_docs")
+                for t in tags_for_case:
+                    delta_rag_vs_prompt_by_tag.setdefault(str(t), []).append(int(d))
             judge_label = None
             if args.judge:
                 judged = resp.get("judge")
@@ -507,6 +581,12 @@ def main() -> int:
             s["expect_score_p50"] = _pctl_float(xs, 50)
             s["expect_failures"] = int(expect_failures.get(p, 0))
             s["expect_cases"] = int(len(xs))
+        abs_scores = abstention_scores.get(p) or []
+        if abs_scores:
+            s["abstention_score_avg"] = float(statistics.mean(abs_scores))
+            s["abstention_score_p50"] = _pctl_float(abs_scores, 50)
+            s["abstention_failures"] = int(abstention_failures.get(p, 0))
+            s["abstention_cases"] = int(len(abs_scores))
         js = judge_scores.get(p) or []
         if js:
             s["judge_score_avg"] = float(statistics.mean(js))
@@ -518,6 +598,56 @@ def main() -> int:
     print(f"winner_by_rank_counts={winners_rank}")
     if judge_winners:
         print(f"winner_by_judge_counts={judge_winners}")
+    if delta_rag_vs_prompt:
+        total = int(sum(delta_rag_vs_prompt))
+        avg = float(total / max(1, len(delta_rag_vs_prompt)))
+        print(f"delta_rag_vs_prompt_sum={total} avg={avg:.3f}")
+        by_tag: dict[str, Any] = {}
+        for t, ds in sorted(delta_rag_vs_prompt_by_tag.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+            if not ds:
+                continue
+            s = int(sum(ds))
+            by_tag[t] = {"cases": int(len(ds)), "sum": int(s), "avg": float(s / max(1, len(ds)))}
+        print(json.dumps({"delta_rag_vs_prompt_by_tag": by_tag}, ensure_ascii=False))
+
+        tag_rows: dict[str, list[dict[str, Any]]] = {}
+        for c, row in case_rows:
+            tags_for_case = set(c.tags or [])
+            if c.requires_docs is True:
+                tags_for_case.add("requires_docs")
+            if c.answerable_from_general_knowledge is True:
+                tags_for_case.add("answerable_general")
+            if c.expected_abstain_in_docs is True:
+                tags_for_case.add("expected_abstain_in_docs")
+            for t in tags_for_case:
+                tag_rows.setdefault(str(t), []).append(row)
+
+        tag_metrics: dict[str, Any] = {}
+        for t, rws in sorted(tag_rows.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+            metrics_by_pipeline: dict[str, Any] = {}
+            for p in pipelines:
+                xs_expect: list[float] = []
+                xs_abst: list[float] = []
+                xs_quality: list[float] = []
+                for row in rws:
+                    ev = (row.get("evaluations") or {}).get(p) or {}
+                    v = ev.get("expect_score")
+                    if isinstance(v, (int, float)):
+                        xs_expect.append(float(v))
+                    v = ev.get("abstention_score")
+                    if isinstance(v, (int, float)):
+                        xs_abst.append(float(v))
+                    v = ev.get("quality_score")
+                    if isinstance(v, (int, float)):
+                        xs_quality.append(float(v))
+                metrics_by_pipeline[p] = {
+                    "runs": int(len(rws)),
+                    "expect_score_avg": float(statistics.mean(xs_expect)) if xs_expect else None,
+                    "abstention_score_avg": float(statistics.mean(xs_abst)) if xs_abst else None,
+                    "heuristic_score_avg": float(statistics.mean(xs_quality)) if xs_quality else None,
+                }
+            tag_metrics[t] = {"cases": int(len(rws)), "pipelines": metrics_by_pipeline}
+        print(json.dumps({"tag_metrics": tag_metrics}, ensure_ascii=False))
     for s in summaries:
         print(json.dumps(s, ensure_ascii=False))
 
