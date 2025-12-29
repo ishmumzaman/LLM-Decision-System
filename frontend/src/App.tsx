@@ -15,8 +15,8 @@ const METRIC_HELP: Record<string, string> = {
   overall_score:
     'Composite score from the selected preset (or custom weights).\n' +
     'Not comparable across runs unless the config hash matches.\n' +
-    'Recommended presets: docs_default for Docs-grounded mode, general_default for General mode.\n' +
-    'Use cost_sensitive / latency_sensitive when optimizing those tradeoffs.\n' +
+    'Recommended presets: Docs-grounded (preset) for Docs-grounded mode, General (preset) for General mode.\n' +
+    'Use Cost-sensitive (preset) / Latency-sensitive (preset) when optimizing those tradeoffs.\n' +
     'If hard gates fail, the score is shown as “failed (…)”.',
   expect:
     'Deterministic pattern match from the suite case “expect” field.\n' +
@@ -33,11 +33,11 @@ const METRIC_HELP: Record<string, string> = {
   latency:
     'Per-pipeline latency for this run.\n' +
     'In the composite score it is normalized within the run (lower is better).\n' +
-    'Preset tip: latency_sensitive emphasizes this metric.',
+    'Preset tip: Latency-sensitive (preset) emphasizes this metric.',
   cost:
     'Estimated API cost from token usage and your configured per-1M token rates.\n' +
     'In the composite score it is normalized within the run (lower is better).\n' +
-    'Preset tip: cost_sensitive emphasizes this metric.',
+    'Preset tip: Cost-sensitive (preset) emphasizes this metric.',
   judge:
     'LLM judge: anonymized + pairwise scoring across criteria.\n' +
     'Helps break ties when deterministic metrics are saturated.\n' +
