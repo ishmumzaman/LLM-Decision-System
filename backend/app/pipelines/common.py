@@ -5,7 +5,15 @@ from typing import Any
 from app.settings import Settings
 
 
-def system_prompt_parts(domain_prompt_prefix: str | None) -> list[str]:
+def system_prompt_parts(mode: str, domain_prompt_prefix: str | None) -> list[str]:
+    if mode == "general":
+        return [
+            "You are a helpful assistant.",
+            "Answer using your general knowledge.",
+            "If you do not know, say you don't know.",
+            "Do not guess or speculate about unknowns.",
+        ]
+
     parts = [
         "You are a helpful assistant.",
         "If you do not know, say you don't know.",

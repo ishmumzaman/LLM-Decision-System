@@ -54,6 +54,7 @@ async def run_rag(
     settings: Settings,
     domain: DomainSpec,
     query: str,
+    mode: str,
 ) -> PipelineResult:
     started = time.perf_counter()
     gen_config = generation_config(settings)
@@ -130,25 +131,39 @@ async def run_rag(
     allowed_ids = sorted({int(c["chunk_id"]) for c in retrieved}) if retrieved else []
     allowed_ids_str = ", ".join(str(i) for i in allowed_ids)
 
-    system_parts = [
-        "You are a helpful assistant.",
-        "Answer using ONLY the provided context.",
-        "If the answer is not in the context, say you don't know.",
-        "Do not guess or use outside knowledge. If the context does not explicitly support the claim, say you don't know.",
-        "For questions about whether something is supported 'out of the box' or 'built-in', answer explicitly and state whether it's built-in or requires third-party integration (only if supported by the context).",
-    ]
-    if retrieved:
-        system_parts.extend(
-            [
-                "Cite sources using bracketed chunk ids like [12].",
-                "Every paragraph must include at least one citation.",
-                f"You may ONLY cite these chunk ids: {allowed_ids_str}",
-            ]
-        )
+    if mode == "general":
+        system_parts = [
+            "You are a helpful assistant.",
+            "You may use the provided context if it is relevant, but you can also answer using your general knowledge.",
+            "If you are not sure, say you don't know.",
+        ]
+        if retrieved:
+            system_parts.extend(
+                [
+                    "When you use information from the context, cite it using bracketed chunk ids like [12].",
+                    f"You may ONLY cite these chunk ids: {allowed_ids_str}",
+                ]
+            )
     else:
-        system_parts.append("No context was retrieved. Reply with 'I don't know.'")
-    if domain.domain_prompt_prefix:
-        system_parts.append(domain.domain_prompt_prefix.strip())
+        system_parts = [
+            "You are a helpful assistant.",
+            "Answer using ONLY the provided context.",
+            "If the answer is not in the context, say you don't know.",
+            "Do not guess or use outside knowledge. If the context does not explicitly support the claim, say you don't know.",
+            "For questions about whether something is supported 'out of the box' or 'built-in', answer explicitly and state whether it's built-in or requires third-party integration (only if supported by the context).",
+        ]
+        if retrieved:
+            system_parts.extend(
+                [
+                    "Cite sources using bracketed chunk ids like [12].",
+                    "Every paragraph must include at least one citation.",
+                    f"You may ONLY cite these chunk ids: {allowed_ids_str}",
+                ]
+            )
+        else:
+            system_parts.append("No context was retrieved. Reply with 'I don't know.'")
+        if domain.domain_prompt_prefix:
+            system_parts.append(domain.domain_prompt_prefix.strip())
 
     resp = await client.chat.completions.create(
         model=settings.openai_model,
@@ -165,7 +180,7 @@ async def run_rag(
     tokens_in = getattr(resp.usage, "prompt_tokens", None)
     tokens_out = getattr(resp.usage, "completion_tokens", None)
 
-    if retrieved and not _is_unknown_answer(answer) and not _has_any_citation(answer):
+    if mode != "general" and retrieved and not _is_unknown_answer(answer) and not _has_any_citation(answer):
         flags["CITATION_REWRITE"] = True
         rewrite_system = [
             "You are a careful technical editor.",

@@ -96,7 +96,6 @@ def _check_expectations(answer: str, expect: dict[str, Any]) -> tuple[float, dic
         details["forbidden"] = forbidden
     return score, details
 
-
 def _utc_stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
@@ -268,6 +267,12 @@ def main() -> int:
         help="Backend base URL (default: http://127.0.0.1:8000)",
     )
     parser.add_argument(
+        "--mode",
+        default="docs",
+        choices=["docs", "general"],
+        help="Run mode: docs-grounded or general (default: docs)",
+    )
+    parser.add_argument(
         "--suite",
         default=str(Path("backend/tests/fixtures/mvp_queries.yaml")),
         help="Path to suite YAML (default: backend/tests/fixtures/mvp_queries.yaml)",
@@ -292,6 +297,24 @@ def main() -> int:
     parser.add_argument("--max-queries", type=int, default=None, help="Run only the first N queries")
     parser.add_argument("--sleep-ms", type=int, default=0, help="Sleep between queries (rate limiting)")
     parser.add_argument("--out-jsonl", default=None, help="Optional path to write each RunResponse as JSONL")
+    parser.add_argument("--judge", action="store_true", help="Use an LLM judge to score and rank answers")
+    parser.add_argument(
+        "--judge-model",
+        default=None,
+        help="Judge model (default: OPENAI_MODEL from backend settings)",
+    )
+    parser.add_argument(
+        "--judge-answer-chars",
+        type=int,
+        default=2500,
+        help="Max answer characters per pipeline to include in the judge prompt (default: 2500)",
+    )
+    parser.add_argument(
+        "--judge-chunk-chars",
+        type=int,
+        default=800,
+        help="Max chunk preview characters to include for RAG evidence (default: 800)",
+    )
     parser.add_argument(
         "--show-expect",
         action="store_true",
@@ -358,20 +381,32 @@ def main() -> int:
     run_stamp = _utc_stamp()
 
     try:
-        print(f"suite={suite_name} domain={domain} pipelines={pipelines} queries={len(cases)} base_url={base_url}")
+        print(
+            f"suite={suite_name} domain={domain} mode={args.mode} pipelines={pipelines} queries={len(cases)} base_url={base_url}"
+        )
 
         winners_rank: dict[str, int] = {}
         expect_scores: dict[str, list[float]] = {p: [] for p in pipelines}
         expect_failures: dict[str, int] = {p: 0 for p in pipelines}
+        judge_scores: dict[str, list[float]] = {p: [] for p in pipelines}
+        judge_winners: dict[str, int] = {}
 
         for i, c in enumerate(cases, start=1):
             payload = {
                 "domain": domain,
                 "query": c.query,
+                "mode": str(args.mode),
                 "pipelines": pipelines,
+                "expect": c.expect or None,
                 "run_id": f"regression:{suite_name}:{run_stamp}:{i:03d}:{c.id}",
                 "client_metadata": {"suite": suite_name, "case_id": c.id, "tags": c.tags},
             }
+            if args.judge:
+                payload["judge"] = True
+                if args.judge_model:
+                    payload["judge_model"] = str(args.judge_model)
+                payload["judge_answer_chars"] = int(args.judge_answer_chars)
+                payload["judge_chunk_chars"] = int(args.judge_chunk_chars)
             status, resp = _http_json(
                 method="POST", url=f"{base_url}/run", payload=payload, timeout_s=args.timeout_s
             )
@@ -414,6 +449,20 @@ def main() -> int:
                                 file=sys.stderr,
                             )
                 ranked.append((p, _rank_key(result=r, evaluation=e, expectation_score=exp_score)))
+            judge_label = None
+            if args.judge:
+                judged = resp.get("judge")
+                if isinstance(judged, dict) and not judged.get("error"):
+                    scores = judged.get("scores")
+                    if isinstance(scores, dict):
+                        for p in pipelines:
+                            v = scores.get(p)
+                            if isinstance(v, (int, float)):
+                                judge_scores[p].append(float(v))
+                    w = judged.get("winner")
+                    if isinstance(w, str) and w:
+                        judge_winners[w] = judge_winners.get(w, 0) + 1
+                        judge_label = w
 
             if ranked:
                 best_key = max(k for _, k in ranked)
@@ -426,7 +475,8 @@ def main() -> int:
                     winners_rank["tie"] = winners_rank.get("tie", 0) + 1
 
             winner_label = winner if winner is not None else ("tie" if winner_ties else "?")
-            print(f"{i:02d}/{len(cases)} {c.id}: ok (rag_chunks={rag_chunks}) winner={winner_label}")
+            judge_suffix = f" judge={judge_label}" if judge_label else ""
+            print(f"{i:02d}/{len(cases)} {c.id}: ok (rag_chunks={rag_chunks}) winner={winner_label}{judge_suffix}")
 
             if args.sleep_ms > 0:
                 time.sleep(args.sleep_ms / 1000.0)
@@ -457,10 +507,17 @@ def main() -> int:
             s["expect_score_p50"] = _pctl_float(xs, 50)
             s["expect_failures"] = int(expect_failures.get(p, 0))
             s["expect_cases"] = int(len(xs))
+        js = judge_scores.get(p) or []
+        if js:
+            s["judge_score_avg"] = float(statistics.mean(js))
+            s["judge_score_p50"] = _pctl_float(js, 50)
+            s["judge_cases"] = int(len(js))
     print("")
     print(f"completed={len(rows)}/{len(cases)} elapsed_s={elapsed_s:.1f}")
     print(f"winner_by_quality_counts_backend={winners}")
     print(f"winner_by_rank_counts={winners_rank}")
+    if judge_winners:
+        print(f"winner_by_judge_counts={judge_winners}")
     for s in summaries:
         print(json.dumps(s, ensure_ascii=False))
 

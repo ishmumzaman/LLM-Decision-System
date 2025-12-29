@@ -11,6 +11,7 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 ## MVP Decisions (Locked)
 - Domain: FastAPI docs (`fastapi_docs`).
 - Additional example domain (post-MVP): React docs (`react_docs`).
+- Additional example domain (post-MVP): PostgreSQL docs (`postgresql_docs`).
 - LLM provider (MVP): OpenAI (keep code abstractable later).
 - Python deps: venv + `requirements.txt`.
 - Ship prebuilt RAG artifacts and commit them under `domains/<domain>/artifacts/`.
@@ -22,17 +23,26 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 3. Fetch corpus (one-time):
    - FastAPI: `python backend/scripts/fetch_fastapi_docs.py` (optional: use `--commit <sha>` for exact reproducibility)
    - React: `python backend/scripts/fetch_react_docs.py` (optional: `--include <subdir>` repeatable, or `--include-blog`)
+   - PostgreSQL: `python backend/scripts/fetch_postgresql_docs.py` (optional: use `--commit <sha>` for exact reproducibility)
 4. Build artifacts (one-time):
    - FastAPI: `python backend/scripts/build_index.py --domain fastapi_docs`
    - React: `python backend/scripts/build_index.py --domain react_docs`
+   - PostgreSQL: `python backend/scripts/build_index.py --domain postgresql_docs`
 5. Run API: `.\.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --reload`
 
 ## Regression Suite
 - Query set: `backend/tests/fixtures/mvp_queries.yaml`
-- Runner (backend must be running): `.\.venv\Scripts\python backend/scripts/run_regression.py --base-url http://127.0.0.1:8000`
+- Runner (backend must be running): `.\.venv\Scripts\python backend/scripts/run_regression.py --base-url http://127.0.0.1:8000 --mode docs`
   - Include fine-tune: `--pipelines prompt,rag,finetune` (requires a configured fine-tuned model)
 - React suite: `backend/tests/fixtures/react_docs_mvp_v1.yaml`
   - Runner: `.\.venv\Scripts\python backend/scripts/run_regression.py --suite backend/tests/fixtures/react_docs_mvp_v1.yaml --pipelines prompt,rag`
+- PostgreSQL suite: `backend/tests/fixtures/postgresql_docs_mvp_v1.yaml`
+  - Runner: `.\.venv\Scripts\python backend/scripts/run_regression.py --suite backend/tests/fixtures/postgresql_docs_mvp_v1.yaml --pipelines prompt,rag`
+
+## Modes (Docs-grounded vs General)
+The UI/API supports a per-request `mode`:
+- `docs`: docs-grounded behavior (RAG uses only retrieved domain context and cites chunk ids)
+- `general`: general-knowledge behavior (RAG may optionally use retrieved context; grounding/citation checks are disabled)
 
 ## Fine-tuning (Optional)
 This enables a third pipeline: `finetune`.

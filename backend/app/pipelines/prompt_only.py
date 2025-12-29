@@ -16,11 +16,12 @@ async def run_prompt_only(
     settings: Settings,
     domain: DomainSpec,
     query: str,
+    mode: str,
 ) -> PipelineResult:
     started = time.perf_counter()
     gen_config = generation_config(settings)
 
-    system_parts = system_prompt_parts(domain.domain_prompt_prefix)
+    system_parts = system_prompt_parts(mode, domain.domain_prompt_prefix)
 
     resp = await client.chat.completions.create(
         model=settings.openai_model,

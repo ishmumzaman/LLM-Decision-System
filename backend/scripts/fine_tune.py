@@ -44,7 +44,7 @@ def _load_dataset_yaml(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]
 
 
 def _build_system_prompt(domain_prompt_prefix: str | None) -> str:
-    return "\n".join(system_prompt_parts(domain_prompt_prefix))
+    return "\n".join(system_prompt_parts("docs", domain_prompt_prefix))
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:

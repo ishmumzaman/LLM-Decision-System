@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
     openai_model: str = Field("gpt-4o-mini", validation_alias="OPENAI_MODEL")
+    openai_judge_model: str = Field("gpt-4o", validation_alias="OPENAI_JUDGE_MODEL")
     openai_embedding_model: str = Field(
         "text-embedding-3-small", validation_alias="OPENAI_EMBEDDING_MODEL"
     )
@@ -44,6 +45,10 @@ class Settings(BaseSettings):
     domains_dir: Path = Field(default_factory=lambda: repo_root() / "domains")
     domains_registry_path: Path = Field(default_factory=lambda: repo_root() / "domains" / "registry.yaml")
     run_log_path: Path = Field(default_factory=lambda: repo_root() / "backend" / "runs.jsonl")
+    regression_suites_dir: Path = Field(
+        default_factory=lambda: repo_root() / "backend" / "tests" / "fixtures",
+        validation_alias="REGRESSION_SUITES_DIR",
+    )
 
     # Optional safety budget (best-effort; enforced only when cost estimation is enabled)
     max_run_cost_usd: float | None = Field(default=None, validation_alias="MAX_RUN_COST_USD")

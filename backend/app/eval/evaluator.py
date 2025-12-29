@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
-from app.schemas.run import EvaluationResult, PipelineResult
+from app.schemas.run import EvaluationResult, PipelineResult, RuleBreakdownItem
 
 RuleFn = Callable[[PipelineResult], tuple[list[str], list[str], str | None, float]]
 
@@ -60,6 +60,7 @@ def evaluate_results(
         halluc_flags: list[str] = []
         grounding_flags: list[str] = []
         notes: list[str] = []
+        rule_breakdown: list[RuleBreakdownItem] = []
         penalty = 0.0
 
         for name in rule_names:
@@ -69,6 +70,16 @@ def evaluate_results(
             h, g, note, p = rule(result)
             halluc_flags.extend(h)
             grounding_flags.extend(g)
+            if p > 0.0 or h or g or note:
+                rule_breakdown.append(
+                    RuleBreakdownItem(
+                        rule=name,
+                        penalty=float(p),
+                        hallucination_flags=h,
+                        grounding_flags=g,
+                        note=note,
+                    )
+                )
             if note:
                 notes.append(note)
             penalty += p
@@ -78,6 +89,8 @@ def evaluate_results(
 
         evaluations[pipeline] = EvaluationResult(
             quality_score=score if result.error is None else None,
+            penalty_total=float(penalty) if result.error is None else None,
+            rule_breakdown=rule_breakdown,
             hallucination_flags=halluc_flags,
             grounding_flags=grounding_flags,
             notes=" ".join(notes) if notes else None,

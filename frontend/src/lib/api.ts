@@ -1,4 +1,11 @@
-import type { DomainsResponse, HealthResponse, RunRequest, RunResponse } from '../types'
+import type {
+  DomainsResponse,
+  HealthResponse,
+  RunRequest,
+  RunResponse,
+  SuiteResponse,
+  SuitesResponse,
+} from '../types'
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8000'
 
@@ -51,6 +58,14 @@ export function getDomains(): Promise<DomainsResponse> {
   return fetchJson('/domains')
 }
 
+export function getSuites(): Promise<SuitesResponse> {
+  return fetchJson('/suites')
+}
+
+export function getSuite(id: string): Promise<SuiteResponse> {
+  return fetchJson(`/suites/${encodeURIComponent(id)}`)
+}
+
 export function runOnce(payload: RunRequest): Promise<RunResponse> {
   return fetchJson('/run', {
     method: 'POST',
@@ -58,4 +73,3 @@ export function runOnce(payload: RunRequest): Promise<RunResponse> {
     body: JSON.stringify(payload),
   })
 }
-
