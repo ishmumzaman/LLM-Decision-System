@@ -1,0 +1,81 @@
+suite: postgresql_docs_mvp_v1
+domain: postgresql_docs
+description: >
+  Starter regression suite for the PostgreSQL docs domain. Expand over time as you add
+  more domains and harden evaluation expectations.
+queries:
+  - id: what_is_postgresql
+    query: "What is PostgreSQL and what is it commonly used for?"
+    tags: ["intro"]
+    expect:
+      must_include_any:
+        - ["PostgreSQL", "postgresql"]
+        - ["database", "relational"]
+
+  - id: create_table_basics
+    query: "How do I create a table in PostgreSQL? Show a minimal example."
+    tags: ["sql", "ddl"]
+    expect:
+      must_include_any:
+        - ["CREATE TABLE"]
+
+  - id: primary_key
+    query: "How do I define a primary key in PostgreSQL?"
+    tags: ["sql", "ddl"]
+    expect:
+      must_include_any:
+        - ["PRIMARY KEY", "primary key"]
+
+  - id: transactions_basics
+    query: "What is a transaction in PostgreSQL and how do I use BEGIN/COMMIT?"
+    tags: ["transactions"]
+    expect:
+      must_include_any:
+        - ["BEGIN", "START TRANSACTION"]
+        - ["COMMIT", "ROLLBACK"]
+
+  - id: create_index
+    query: "How do I create an index in PostgreSQL and when would I use one?"
+    tags: ["indexing"]
+    expect:
+      must_include_any:
+        - ["CREATE INDEX"]
+        - ["index", "indexes"]
+
+  - id: explain_analyze
+    query: "How do I use EXPLAIN (ANALYZE) to understand query performance?"
+    tags: ["performance"]
+    expect:
+      must_include_any:
+        - ["EXPLAIN"]
+        - ["ANALYZE", "ANALYSE"]
+
+  - id: vacuum_basics
+    query: "What does VACUUM do in PostgreSQL?"
+    tags: ["maintenance"]
+    expect:
+      must_include_any:
+        - ["VACUUM"]
+        - ["dead tuple", "tuples", "space", "cleanup"]
+
+  - id: jsonb_basics
+    query: "What is JSONB in PostgreSQL and how is it different from JSON?"
+    tags: ["json"]
+    expect:
+      must_include_any:
+        - ["JSONB", "jsonb"]
+        - ["JSON", "json"]
+
+  - id: psql_connect
+    query: "How do I connect to a PostgreSQL database using psql? Give a minimal example."
+    tags: ["psql"]
+    expect:
+      must_include_any:
+        - ["psql"]
+        - ["-h", "-U", "-d", "host", "user", "database"]
+
+  - id: trap_capital_france
+    query: "What is the capital of France? Answer only if the PostgreSQL docs explicitly say so."
+    tags: ["trap"]
+    expect:
+      expect_idk: true

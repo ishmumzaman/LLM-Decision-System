@@ -1,3 +1,4 @@
 domains:
   - fastapi_docs
   - react_docs
+  - postgresql_docs

@@ -4,13 +4,14 @@ import argparse
 import hashlib
 import json
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import faiss  # type: ignore
 import numpy as np
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -86,7 +87,40 @@ def _embed_texts(*, client: OpenAI, model: str, texts: list[str], batch_size: in
     vectors: list[list[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
-        resp = client.embeddings.create(model=model, input=batch)
+        attempt = 0
+        while True:
+            try:
+                resp = client.embeddings.create(model=model, input=batch)
+                break
+            except RateLimitError as exc:
+                attempt += 1
+                msg = str(exc)
+                wait_s = 1.0
+                marker = "Please try again in "
+                if marker in msg:
+                    tail = msg.split(marker, 1)[1]
+                    num = ""
+                    unit = ""
+                    for ch in tail:
+                        if ch.isdigit() or ch == ".":
+                            num += ch
+                            continue
+                        if ch.isalpha():
+                            unit += ch
+                            continue
+                        if num:
+                            break
+                    try:
+                        v = float(num) if num else 0.0
+                        if unit.lower().startswith("ms"):
+                            wait_s = max(0.5, v / 1000.0)
+                        elif unit.lower().startswith("s"):
+                            wait_s = max(0.5, v)
+                    except ValueError:
+                        wait_s = 1.0
+                if attempt <= 3:
+                    print(f"Rate limited; sleeping {wait_s:.2f}s then retrying batch...", file=sys.stderr)
+                time.sleep(wait_s)
 
         out: list[list[float] | None] = [None] * len(batch)
         for item in resp.data:
