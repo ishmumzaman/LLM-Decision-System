@@ -55,7 +55,7 @@ queries:
   - id: explain_analyze
     query: "How do I use EXPLAIN (ANALYZE) to understand query performance?"
     tags: ["performance"]
-    answerable_from_general_knowledge: true
+    answerable_from_general_knowledge: false
     requires_docs: true
     expect:
       must_include_any:
@@ -65,7 +65,7 @@ queries:
   - id: vacuum_basics
     query: "What does VACUUM do in PostgreSQL?"
     tags: ["maintenance"]
-    answerable_from_general_knowledge: true
+    answerable_from_general_knowledge: false
     requires_docs: true
     expect:
       must_include_any:
@@ -85,12 +85,51 @@ queries:
   - id: psql_connect
     query: "How do I connect to a PostgreSQL database using psql? Give a minimal example."
     tags: ["psql"]
-    answerable_from_general_knowledge: true
+    answerable_from_general_knowledge: false
     requires_docs: true
     expect:
       must_include_any:
         - ["psql"]
         - ["-h", "-U", "-d", "host", "user", "database"]
+
+  - id: create_index_concurrently
+    query: "How do I create an index concurrently in PostgreSQL, and what is a key limitation?"
+    tags: ["indexing", "performance"]
+    answerable_from_general_knowledge: false
+    requires_docs: true
+    expect:
+      must_include_any:
+        - ["CREATE INDEX CONCURRENTLY"]
+        - ["cannot run inside a transaction", "not in a transaction block", "outside a transaction"]
+
+  - id: vacuum_full_lock
+    query: "What does VACUUM FULL do, and what kind of lock does it require?"
+    tags: ["maintenance", "edge_case"]
+    answerable_from_general_knowledge: false
+    requires_docs: true
+    expect:
+      must_include_any:
+        - ["VACUUM FULL"]
+        - ["exclusive", "AccessExclusiveLock", "access exclusive"]
+
+  - id: identity_columns
+    query: "How do I define an IDENTITY column in PostgreSQL? Show a minimal example."
+    tags: ["sql", "ddl"]
+    answerable_from_general_knowledge: false
+    requires_docs: true
+    expect:
+      must_include_any:
+        - ["GENERATED", "IDENTITY"]
+        - ["BY DEFAULT", "ALWAYS"]
+
+  - id: trap_builtin_sharding
+    query: "Does PostgreSQL support sharding out of the box? Answer only if the PostgreSQL docs explicitly say so."
+    tags: ["trap", "edge_case", "unsupported_claim"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
+    expected_abstain_in_docs: true
+    expect:
+      expect_idk: true
 
   - id: trap_capital_france
     query: "What is the capital of France? Answer only if the PostgreSQL docs explicitly say so."

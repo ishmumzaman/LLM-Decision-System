@@ -166,7 +166,7 @@ queries:
   - id: create_root
     query: "How do I render a React app in the browser with createRoot?"
     tags: ["react-dom"]
-    answerable_from_general_knowledge: true
+    answerable_from_general_knowledge: false
     requires_docs: true
     expect:
       must_include_any:
@@ -176,11 +176,50 @@ queries:
   - id: server_components_basics
     query: "At a high level, what are React Server Components?"
     tags: ["rsc"]
-    answerable_from_general_knowledge: true
+    answerable_from_general_knowledge: false
     requires_docs: true
     expect:
       must_include_any:
         - ["Server Components", "server components", "RSC"]
+
+  - id: hydrate_root
+    query: "How do I hydrate a server-rendered React app in React 18+? Show a minimal hydrateRoot example."
+    tags: ["react-dom", "ssr"]
+    answerable_from_general_knowledge: false
+    requires_docs: true
+    expect:
+      must_include_any:
+        - ["hydrateRoot"]
+        - ["react-dom/client", "react-dom"]
+
+  - id: use_id_not_for_keys
+    query: "What is useId used for, and what should you not use it for?"
+    tags: ["hooks", "edge_case"]
+    answerable_from_general_knowledge: false
+    requires_docs: true
+    expect:
+      must_include_any:
+        - ["useId"]
+        - ["not for keys", "don't use it for keys", "shouldn't be used for keys", "not be used for keys"]
+
+  - id: use_insertion_effect
+    query: "What is useInsertionEffect for, and when would you use it instead of useEffect?"
+    tags: ["hooks", "edge_case"]
+    answerable_from_general_knowledge: false
+    requires_docs: true
+    expect:
+      must_include_any:
+        - ["useInsertionEffect"]
+        - ["CSS-in-JS", "css-in-js", "styles", "style"]
+
+  - id: trap_builtin_routing
+    query: "Does React include routing out of the box? Answer only if the docs explicitly say so."
+    tags: ["trap", "edge_case", "unsupported_claim"]
+    answerable_from_general_knowledge: true
+    requires_docs: false
+    expected_abstain_in_docs: true
+    expect:
+      expect_idk: true
 
   - id: trap_deno
     query: "Can React run on Deno? Answer only if the docs explicitly say so."
