@@ -54,7 +54,7 @@ export const PRESETS: Record<
       gates: {
         require_expect_full: false,
         require_abstention_correct: false,
-        require_no_grounding_flags: false,
+        require_no_grounding_flags: true,
         require_no_hallucination_flags: false,
       },
     },

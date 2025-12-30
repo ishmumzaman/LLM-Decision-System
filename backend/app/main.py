@@ -22,7 +22,7 @@ from app.llm.openai_client import build_openai_client
 from app.pipelines.finetuned import run_finetuned
 from app.pipelines.prompt_only import run_prompt_only
 from app.pipelines.rag import run_rag
-from app.schemas.run import CaseMetadata, PipelineResult, RunRequest, RunResponse
+from app.schemas.run import CaseMetadata, PipelineResult, RuleBreakdownItem, RunRequest, RunResponse
 from app.settings import Settings
 from app.logging.run_logger import append_run
 
@@ -290,6 +290,57 @@ async def run(request: RunRequest) -> RunResponse:
     if request.mode == "general":
         rule_names = [r for r in rule_names if r != "not_grounded_check"]
     evaluations, summary = evaluate_results(results=results, rule_names=rule_names)
+
+    if request.mode == "docs":
+        prompt = results.get("prompt")
+        if prompt is not None and prompt.error is None:
+            answer = prompt.answer or ""
+            if _IDK_RE.search(answer) is None:
+                penalty = 0.5
+                flag = "PROMPT_NO_EVIDENCE_IN_DOCS"
+                note = (
+                    "Docs-grounded mode: prompt-only has no retrieved evidence; "
+                    "treat non-abstaining answers as ungrounded."
+                )
+
+                prev = evaluations.get("prompt")
+                if prev is not None and prev.quality_score is not None:
+                    base_quality = float(prev.quality_score)
+                    base_penalty = float(prev.penalty_total or 0.0)
+                    breakdown = list(prev.rule_breakdown or [])
+                    breakdown.append(
+                        RuleBreakdownItem(
+                            rule="prompt_docs_evidence_check",
+                            penalty=penalty,
+                            hallucination_flags=[],
+                            grounding_flags=[flag],
+                            note=note,
+                        )
+                    )
+                    evaluations["prompt"] = prev.model_copy(
+                        update={
+                            "quality_score": max(0.0, min(1.0, base_quality - penalty)),
+                            "penalty_total": base_penalty + penalty,
+                            "rule_breakdown": breakdown,
+                            "grounding_flags": [*(prev.grounding_flags or []), flag],
+                            "notes": f"{prev.notes} {note}".strip() if prev.notes else note,
+                        }
+                    )
+
+                    scored = {
+                        k: float(v.quality_score)
+                        for k, v in evaluations.items()
+                        if v.quality_score is not None
+                    }
+                    if scored:
+                        best = max(scored.values())
+                        winners = sorted([k for k, s in scored.items() if s == best])
+                        if len(winners) == 1:
+                            summary["winner_by_quality"] = winners[0]
+                            summary.pop("winner_by_quality_ties", None)
+                        else:
+                            summary["winner_by_quality"] = None
+                            summary["winner_by_quality_ties"] = winners
 
     inferred_case: CaseMetadata | None = request.case
     tags: list[str] = []
