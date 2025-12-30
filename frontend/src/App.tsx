@@ -3,6 +3,7 @@ import { getDomains, getHealth, getSuite, getSuites, runOnce } from './lib/api'
 import { formatInt, formatIsoTimestamp, formatUsd } from './lib/format'
 import { PRESETS, computeScores, withHash } from './lib/scoring'
 import type {
+  DomainInfo,
   EvaluationResult,
   PipelineResult,
   RetrievedChunk,
@@ -63,6 +64,7 @@ const METRIC_HELP: Record<string, string> = {
 function App() {
   const [backendOk, setBackendOk] = useState<boolean | null>(null)
   const [domains, setDomains] = useState<string[]>([])
+  const [domainInfo, setDomainInfo] = useState<Record<string, DomainInfo>>({})
   const [domain, setDomain] = useState('fastapi_docs')
   const [mode, setMode] = useState<'docs' | 'general'>('docs')
   const [querySource, setQuerySource] = useState<'custom' | 'suite'>('custom')
@@ -115,6 +117,10 @@ function App() {
     return suites.filter((s) => !s.domain || s.domain === domain)
   }, [suites, domain])
 
+  const finetuneAvailable = useMemo(() => {
+    return domainInfo[domain]?.finetune_available === true
+  }, [domainInfo, domain])
+
   useEffect(() => {
     let canceled = false
 
@@ -130,6 +136,7 @@ function App() {
         const resp = await getDomains()
         if (!canceled) {
           setDomains(resp.domains || [])
+          setDomainInfo(resp.domain_info || {})
           if (resp.domains?.includes(domain) === false && resp.domains.length > 0) {
             setDomain(resp.domains[0])
           }
@@ -153,6 +160,12 @@ function App() {
       canceled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!finetuneAvailable) {
+      setPipelines((p) => (p.finetune ? { ...p, finetune: false } : p))
+    }
+  }, [finetuneAvailable])
 
   useEffect(() => {
     if (querySource !== 'suite') return
@@ -312,8 +325,16 @@ function App() {
                 />
                 <PipelineToggle
                   label="Fine-tuned"
+                  info={
+                    finetuneAvailable
+                      ? 'Uses a domain-specific fine-tuned model if configured.\n' +
+                        'Enable by setting domains/<domain>/config.yaml finetuned_model.'
+                      : 'Not configured for this domain.\n' +
+                        'Set domains/<domain>/config.yaml finetuned_model to enable.'
+                  }
                   checked={pipelines.finetune}
                   onChange={(v) => setPipelines((p) => ({ ...p, finetune: v }))}
+                  disabled={!finetuneAvailable}
                 />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -909,19 +930,25 @@ function PipelineToggle({
   label,
   info,
   checked,
+  disabled,
   onChange,
 }: {
   label: string
   info?: string
   checked: boolean
+  disabled?: boolean
   onChange: (value: boolean) => void
 }) {
+  const labelClasses = disabled
+    ? 'inline-flex cursor-not-allowed select-none items-center gap-2 text-sm text-slate-100 opacity-50'
+    : 'inline-flex cursor-pointer select-none items-center gap-2 text-sm text-slate-100'
   return (
-    <label className="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-slate-100">
+    <label className={labelClasses}>
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
         className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-indigo-500"
       />
       <span className="inline-flex items-center gap-1">

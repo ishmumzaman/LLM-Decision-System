@@ -53,8 +53,16 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/domains")
-async def list_domains() -> dict[str, list[str]]:
-    return {"domains": load_registry(settings.domains_registry_path)}
+async def list_domains() -> dict[str, Any]:
+    domains = load_registry(settings.domains_registry_path)
+    info: dict[str, dict[str, Any]] = {}
+    for d in domains:
+        try:
+            spec = load_domain_spec(settings.domains_dir, d)
+            info[d] = {"finetune_available": bool(spec.finetuned_model)}
+        except Exception:  # noqa: BLE001
+            info[d] = {"finetune_available": False}
+    return {"domains": domains, "domain_info": info}
 
 
 _SUITE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")

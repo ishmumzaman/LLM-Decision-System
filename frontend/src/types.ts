@@ -1,6 +1,10 @@
 export type HealthResponse = { status: string }
 
-export type DomainsResponse = { domains: string[] }
+export type DomainInfo = {
+  finetune_available?: boolean
+}
+
+export type DomainsResponse = { domains: string[]; domain_info?: Record<string, DomainInfo> }
 
 export type SuiteInfo = {
   id: string

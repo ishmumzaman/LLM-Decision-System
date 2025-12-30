@@ -30,6 +30,15 @@ class QueryCase:
 _IDK_RE = re.compile(r"\b(i don't know|i do not know|not in (the )?context|unknown)\b", re.IGNORECASE)
 
 
+def _is_skipped_pipeline_result(*, pipeline: str, result: dict[str, Any]) -> bool:
+    err = result.get("error")
+    if not isinstance(err, str) or not err:
+        return False
+    if pipeline == "finetune" and err.startswith("MISSING_FINETUNED_MODEL"):
+        return True
+    return False
+
+
 def _contains_pattern(text: str, pattern: str) -> bool:
     p = str(pattern)
     if p.startswith("re:"):
@@ -209,6 +218,7 @@ def _pctl_float(values: list[float], pct: float) -> float | None:
 def _summarize_pipeline(rows: list[dict[str, Any]], pipeline: str) -> dict[str, Any]:
     ok: list[dict[str, Any]] = []
     errors = 0
+    skipped = 0
     latencies: list[int] = []
     costs: list[float] = []
     retrieved_counts: list[int] = []
@@ -219,6 +229,10 @@ def _summarize_pipeline(rows: list[dict[str, Any]], pipeline: str) -> dict[str, 
     for row in rows:
         result = (row.get("results") or {}).get(pipeline) or {}
         evaluation = (row.get("evaluations") or {}).get(pipeline) or {}
+
+        if _is_skipped_pipeline_result(pipeline=pipeline, result=result):
+            skipped += 1
+            continue
 
         if result.get("error") is not None:
             errors += 1
@@ -244,6 +258,7 @@ def _summarize_pipeline(rows: list[dict[str, Any]], pipeline: str) -> dict[str, 
         "runs": len(rows),
         "ok": len(ok),
         "errors": errors,
+        "skipped": skipped,
         "latency_ms_avg": int(round(statistics.mean(latencies))) if latencies else None,
         "latency_ms_p50": _pctl(latencies, 50),
         "latency_ms_p95": _pctl(latencies, 95),
@@ -481,6 +496,8 @@ def main() -> int:
             for p in pipelines:
                 r = results.get(p) or {}
                 e = evals.get(p) or {}
+                if _is_skipped_pipeline_result(pipeline=p, result=r):
+                    continue
                 ans = str(r.get("answer") or "")
 
                 abst = e.get("abstention_score")
@@ -530,6 +547,9 @@ def main() -> int:
                     scores = judged.get("scores")
                     if isinstance(scores, dict):
                         for p in pipelines:
+                            r = results.get(p) or {}
+                            if _is_skipped_pipeline_result(pipeline=p, result=r):
+                                continue
                             v = scores.get(p)
                             if isinstance(v, (int, float)):
                                 judge_scores[p].append(float(v))
@@ -629,7 +649,18 @@ def main() -> int:
                 xs_expect: list[float] = []
                 xs_abst: list[float] = []
                 xs_quality: list[float] = []
+                ok_runs = 0
+                error_runs = 0
+                skipped_runs = 0
                 for row in rws:
+                    res = (row.get("results") or {}).get(p) or {}
+                    if _is_skipped_pipeline_result(pipeline=p, result=res):
+                        skipped_runs += 1
+                        continue
+                    if res.get("error") is None:
+                        ok_runs += 1
+                    else:
+                        error_runs += 1
                     ev = (row.get("evaluations") or {}).get(p) or {}
                     v = ev.get("expect_score")
                     if isinstance(v, (int, float)):
@@ -641,7 +672,10 @@ def main() -> int:
                     if isinstance(v, (int, float)):
                         xs_quality.append(float(v))
                 metrics_by_pipeline[p] = {
-                    "runs": int(len(rws)),
+                    "runs": int(len(rws) - skipped_runs),
+                    "ok": int(ok_runs),
+                    "errors": int(error_runs),
+                    "skipped": int(skipped_runs),
                     "expect_score_avg": float(statistics.mean(xs_expect)) if xs_expect else None,
                     "abstention_score_avg": float(statistics.mean(xs_abst)) if xs_abst else None,
                     "heuristic_score_avg": float(statistics.mean(xs_quality)) if xs_quality else None,
