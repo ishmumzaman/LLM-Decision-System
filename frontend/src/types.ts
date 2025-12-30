@@ -1,4 +1,4 @@
-export type HealthResponse = { status: string }
+export type HealthResponse = { status: string; demo_mode?: boolean }
 
 export type DomainInfo = {
   finetune_available?: boolean

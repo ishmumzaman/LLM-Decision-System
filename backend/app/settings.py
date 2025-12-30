@@ -50,6 +50,13 @@ class Settings(BaseSettings):
         validation_alias="REGRESSION_SUITES_DIR",
     )
 
+    # Demo mode (optional): allow running the UI/backend without an API key by replaying sample runs.
+    demo_mode: bool = Field(False, validation_alias="DEMO_MODE")
+    demo_runs_path: Path = Field(
+        default_factory=lambda: repo_root() / "backend" / "demo_runs.json",
+        validation_alias="DEMO_RUNS_PATH",
+    )
+
     # Optional safety budget (best-effort; enforced only when cost estimation is enabled)
     max_run_cost_usd: float | None = Field(default=None, validation_alias="MAX_RUN_COST_USD")
 

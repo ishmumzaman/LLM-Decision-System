@@ -1,5 +1,34 @@
 # LLM Decision System
-Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning optional) on identical inputs, reporting quality/grounding heuristics, latency, and cost.
+Domain-swappable evaluation system to compare prompt-only vs doc-grounded RAG (fine-tuning optional) on identical inputs, reporting deterministic metrics, latency, and estimated cost.
+
+## Quickstart (Docker)
+Prereqs: Docker.
+
+1. Clone:
+   - `git clone <repo-url>`
+   - `cd <repo>`
+2. Create env file:
+   - macOS/Linux: `cp .env.example .env`
+   - Windows (PowerShell): `Copy-Item .env.example .env`
+3. Run:
+   - `docker compose up --build`
+
+Open:
+- UI: `http://127.0.0.1:5173`
+- API: `http://127.0.0.1:8000`
+
+### Demo mode (no API key)
+If `OPENAI_API_KEY` is blank and `DEMO_MODE=1`, the backend runs in **Demo mode** (no API calls) and returns bundled sample outputs so reviewers can use the UI immediately.
+
+To run live:
+- Set `OPENAI_API_KEY=...` in `.env` (repo root) and restart.
+
+## Local dev (no Docker)
+Prereqs: Python 3.11+ (see `.python-version`), Node 20+ (see `.nvmrc`), npm.
+
+- Windows: `.\dev.ps1`
+  - If scripts are blocked: `Set-ExecutionPolicy -Scope Process Bypass -Force`
+- macOS/Linux: `./dev.sh`
 
 ## Docs
 - `docs/Goal.md`
@@ -9,17 +38,17 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 - `docs/ExampleTimeline.md`
 
 ## MVP Decisions (Locked)
-- Domain: FastAPI docs (`fastapi_docs`).
-- Additional example domain (post-MVP): React docs (`react_docs`).
-- Additional example domain (post-MVP): PostgreSQL docs (`postgresql_docs`).
-- LLM provider (MVP): OpenAI (keep code abstractable later).
-- Python deps: venv + `requirements.txt`.
-- Ship prebuilt RAG artifacts and commit them under `domains/<domain>/artifacts/`.
-- Fairness: prompt-only and RAG share the same model + generation settings per `/run`.
+- Domains: FastAPI (`fastapi_docs`), React (`react_docs`), PostgreSQL (`postgresql_docs`)
+- LLM provider (MVP): OpenAI (keep code abstractable later)
+- Python deps: venv + `requirements.txt`
+- Ship prebuilt RAG artifacts and commit them under `domains/<domain>/artifacts/`
+- Fairness: prompt-only and RAG share the same model + generation settings per `/run`
 
-## Next Steps (Backend)
+## Backend (manual setup)
 1. Install deps: `python -m venv .venv` then `.\.venv\Scripts\python -m pip install -r backend/requirements.txt`
-2. Set env: copy `backend/.env.example` -> `backend/.env` and set `OPENAI_API_KEY=...`
+2. Set env (either works):
+   - Recommended: copy `.env.example` -> `.env` and set `OPENAI_API_KEY=...`
+   - Alternative: copy `backend/.env.example` -> `backend/.env`
 3. Fetch corpus (one-time):
    - FastAPI: `python backend/scripts/fetch_fastapi_docs.py` (optional: use `--commit <sha>` for exact reproducibility)
    - React: `python backend/scripts/fetch_react_docs.py` (optional: `--include <subdir>` repeatable, or `--include-blog`)
@@ -31,8 +60,8 @@ Domain-swappable evaluation system to compare prompt-only vs RAG (fine-tuning op
 5. Run API: `.\.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --reload`
 
 ## Regression Suite
-- Query set: `backend/tests/fixtures/mvp_queries.yaml`
-- Runner (backend must be running): `.\.venv\Scripts\python backend/scripts/run_regression.py --base-url http://127.0.0.1:8000 --mode docs`
+- FastAPI suite: `backend/tests/fixtures/mvp_queries.yaml`
+  - Runner (backend must be running): `.\.venv\Scripts\python backend/scripts/run_regression.py --base-url http://127.0.0.1:8000 --mode docs`
   - Include fine-tune: `--pipelines prompt,rag,finetune` (requires a configured fine-tuned model)
 - React suite: `backend/tests/fixtures/react_docs_mvp_v1.yaml`
   - Runner: `.\.venv\Scripts\python backend/scripts/run_regression.py --suite backend/tests/fixtures/react_docs_mvp_v1.yaml --pipelines prompt,rag`
@@ -58,7 +87,7 @@ This enables a third pipeline: `finetune`.
    - Recommended (per-domain): set `finetuned_model: ft:...` in `domains/<domain>/config.yaml`
    - Fallback (global): `OPENAI_FINETUNED_MODEL=ft:...`
 5. Run comparisons:
-   - UI: toggle “Fine-tuned”
+   - UI: toggle "Fine-tuned"
    - Regression: `.\.venv\Scripts\python backend/scripts/run_regression.py --pipelines prompt,rag,finetune`
 
 ## Frontend (MVP UI)
@@ -68,6 +97,7 @@ This enables a third pipeline: `finetune`.
 
 ## Docker (Backend + Frontend)
 Local run (requires Docker):
-1. Set env var: `setx OPENAI_API_KEY "..."` (new terminal after) or export it in your shell
+1. Copy `.env.example` -> `.env` and set `OPENAI_API_KEY=...` (or leave blank to use Demo mode)
 2. Start: `docker compose up --build`
 3. Open UI: `http://127.0.0.1:5173` (API at `http://127.0.0.1:8000`)
+

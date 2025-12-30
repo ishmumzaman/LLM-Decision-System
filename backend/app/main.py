@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from openai import AsyncOpenAI
 import yaml
 
+from app.demo import load_demo_samples, pick_demo_sample
 from app.domains.loader import load_domain_spec, load_registry
 from app.eval.expectations import check_expectations
 from app.eval.evaluator import evaluate_results
@@ -29,6 +30,7 @@ from app.logging.run_logger import append_run
 
 settings = Settings()
 _client: AsyncOpenAI | None = None
+_demo_samples = None
 
 
 def _get_client() -> AsyncOpenAI:
@@ -36,6 +38,13 @@ def _get_client() -> AsyncOpenAI:
     if _client is None:
         _client = build_openai_client(settings)
     return _client
+
+
+def _get_demo_samples():
+    global _demo_samples  # noqa: PLW0603
+    if _demo_samples is None:
+        _demo_samples = load_demo_samples(settings.demo_runs_path)
+    return _demo_samples
 
 app = FastAPI(title="LLM Decision System", version="0.1.0")
 app.add_middleware(
@@ -48,8 +57,9 @@ app.add_middleware(
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health() -> dict[str, Any]:
+    demo_active = bool(settings.demo_mode and not settings.openai_api_key)
+    return {"status": "ok", "demo_mode": demo_active}
 
 
 @app.get("/domains")
@@ -221,13 +231,17 @@ async def run(request: RunRequest) -> RunResponse:
             status_code=500,
             detail={"error": "UNSUPPORTED_LLM_PROVIDER", "provider": settings.llm_provider},
         )
-    if not settings.openai_api_key:
+
+    demo_active = bool(settings.demo_mode and not settings.openai_api_key)
+    if not settings.openai_api_key and not demo_active:
         raise HTTPException(
             status_code=500,
             detail={"error": "MISSING_OPENAI_API_KEY", "hint": "Set OPENAI_API_KEY (or backend/.env)."},
         )
 
     run_id = request.run_id or str(uuid.uuid4())
+    if demo_active and request.run_id is None:
+        run_id = f"demo:{run_id}"
     started = time.perf_counter()
 
     pipelines = request.pipelines or ["prompt", "rag"]
@@ -236,52 +250,97 @@ async def run(request: RunRequest) -> RunResponse:
         if p not in supported:
             raise HTTPException(status_code=400, detail={"error": "INVALID_PIPELINE", "pipeline": p})
 
-    tasks: dict[str, asyncio.Task[PipelineResult]] = {
-        p: asyncio.create_task(_run_one(p, request, request.domain)) for p in pipelines
-    }
+    demo_note = None
+    if demo_active:
+        sample = pick_demo_sample(samples=_get_demo_samples(), domain=request.domain)
+        demo_note = (
+            "Demo mode: returning bundled sample outputs (no API calls). "
+            "Set OPENAI_API_KEY to run live."
+        )
+        request = request.model_copy(
+            update={
+                "query": sample.query,
+                "expect": None,
+                "case": None,
+                "judge": False,
+                "proxy_evidence": False,
+                "proxy_answerability": False,
+            }
+        )
+
+    tasks: dict[str, asyncio.Task[PipelineResult]] = {}
+    if not demo_active:
+        tasks = {p: asyncio.create_task(_run_one(p, request, request.domain)) for p in pipelines}
 
     results: dict[str, PipelineResult] = {}
-    for name, task in tasks.items():
-        try:
-            results[name] = await asyncio.wait_for(task, timeout=settings.pipeline_timeout_s)
-        except asyncio.TimeoutError:
-            latency_ms = int((time.perf_counter() - started) * 1000)
-            results[name] = PipelineResult(
-                pipeline=name,
-                model=_expected_model_for_pipeline(name, request.domain),
-                generation_config={
-                    "temperature": settings.temperature,
-                    "top_p": settings.top_p,
-                    "max_tokens": settings.max_output_tokens,
-                },
-                answer="",
-                latency_ms=latency_ms,
-                tokens_in=None,
-                tokens_out=None,
-                cost_estimate_usd=None,
-                retrieved_chunks=None,
-                flags={},
-                error="TIMEOUT",
-            )
-        except Exception as exc:  # noqa: BLE001
-            latency_ms = int((time.perf_counter() - started) * 1000)
-            results[name] = PipelineResult(
-                pipeline=name,
-                model=_expected_model_for_pipeline(name, request.domain),
-                generation_config={
-                    "temperature": settings.temperature,
-                    "top_p": settings.top_p,
-                    "max_tokens": settings.max_output_tokens,
-                },
-                answer="",
-                latency_ms=latency_ms,
-                tokens_in=None,
-                tokens_out=None,
-                cost_estimate_usd=None,
-                retrieved_chunks=None,
-                flags={},
-                error=f"ERROR: {type(exc).__name__}",
-            )
+    if demo_active:
+        sample = pick_demo_sample(samples=_get_demo_samples(), domain=request.domain)
+        for p in pipelines:
+            if p in sample.results:
+                base = sample.results[p].model_copy(deep=True)
+                flags = dict(base.flags or {})
+                flags["DEMO_MODE"] = True
+                results[p] = base.model_copy(update={"pipeline": p, "flags": flags})
+            else:
+                results[p] = PipelineResult(
+                    pipeline=p,
+                    model=_expected_model_for_pipeline(p, request.domain),
+                    generation_config={
+                        "temperature": settings.temperature,
+                        "top_p": settings.top_p,
+                        "max_tokens": settings.max_output_tokens,
+                    },
+                    answer="",
+                    latency_ms=0,
+                    tokens_in=None,
+                    tokens_out=None,
+                    cost_estimate_usd=None,
+                    retrieved_chunks=None,
+                    flags={"DEMO_MODE": True},
+                    error="DEMO_SAMPLE_MISSING_PIPELINE",
+                )
+    else:
+        for name, task in tasks.items():
+            try:
+                results[name] = await asyncio.wait_for(task, timeout=settings.pipeline_timeout_s)
+            except asyncio.TimeoutError:
+                latency_ms = int((time.perf_counter() - started) * 1000)
+                results[name] = PipelineResult(
+                    pipeline=name,
+                    model=_expected_model_for_pipeline(name, request.domain),
+                    generation_config={
+                        "temperature": settings.temperature,
+                        "top_p": settings.top_p,
+                        "max_tokens": settings.max_output_tokens,
+                    },
+                    answer="",
+                    latency_ms=latency_ms,
+                    tokens_in=None,
+                    tokens_out=None,
+                    cost_estimate_usd=None,
+                    retrieved_chunks=None,
+                    flags={},
+                    error="TIMEOUT",
+                )
+            except Exception as exc:  # noqa: BLE001
+                latency_ms = int((time.perf_counter() - started) * 1000)
+                results[name] = PipelineResult(
+                    pipeline=name,
+                    model=_expected_model_for_pipeline(name, request.domain),
+                    generation_config={
+                        "temperature": settings.temperature,
+                        "top_p": settings.top_p,
+                        "max_tokens": settings.max_output_tokens,
+                    },
+                    answer="",
+                    latency_ms=latency_ms,
+                    tokens_in=None,
+                    tokens_out=None,
+                    cost_estimate_usd=None,
+                    retrieved_chunks=None,
+                    flags={},
+                    error=f"ERROR: {type(exc).__name__}",
+                )
 
     if settings.max_run_cost_usd is not None:
         for result in results.values():
@@ -298,6 +357,10 @@ async def run(request: RunRequest) -> RunResponse:
     if request.mode == "general":
         rule_names = [r for r in rule_names if r != "not_grounded_check"]
     evaluations, summary = evaluate_results(results=results, rule_names=rule_names)
+    if demo_active:
+        summary["demo_mode"] = True
+        if demo_note:
+            summary["demo_note"] = demo_note
 
     if request.mode == "docs":
         prompt = results.get("prompt")

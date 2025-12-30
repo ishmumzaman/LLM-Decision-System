@@ -62,7 +62,7 @@ const METRIC_HELP: Record<string, string> = {
 } as const
 
 function App() {
-  const [backendOk, setBackendOk] = useState<boolean | null>(null)
+  const [backendStatus, setBackendStatus] = useState<'unknown' | 'ok' | 'demo' | 'down'>('unknown')
   const [domains, setDomains] = useState<string[]>([])
   const [domainInfo, setDomainInfo] = useState<Record<string, DomainInfo>>({})
   const [domain, setDomain] = useState('fastapi_docs')
@@ -126,10 +126,10 @@ function App() {
 
     async function boot() {
       try {
-        await getHealth()
-        if (!canceled) setBackendOk(true)
+        const health = await getHealth()
+        if (!canceled) setBackendStatus(health.demo_mode ? 'demo' : 'ok')
       } catch {
-        if (!canceled) setBackendOk(false)
+        if (!canceled) setBackendStatus('down')
       }
 
       try {
@@ -271,9 +271,16 @@ function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <StatusPill ok={backendOk} />
+            <StatusPill status={backendStatus} />
           </div>
         </header>
+
+        {backendStatus === 'demo' ? (
+          <div className="mt-4 rounded-xl border border-amber-700/40 bg-amber-950/30 px-4 py-3 text-xs text-amber-200">
+            Demo mode is active (no API key). Runs return bundled sample outputs. Add <code>OPENAI_API_KEY</code> to
+            run live.
+          </div>
+        ) : null}
 
         <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
           <div className="grid gap-3 sm:grid-cols-4">
@@ -910,14 +917,23 @@ function App() {
 
 export default App
 
-function StatusPill({ ok }: { ok: boolean | null }) {
-  const label = ok == null ? 'Backend: unknown' : ok ? 'Backend: ok' : 'Backend: down'
+function StatusPill({ status }: { status: 'unknown' | 'ok' | 'demo' | 'down' }) {
+  const label =
+    status === 'unknown'
+      ? 'Backend: unknown'
+      : status === 'down'
+        ? 'Backend: down'
+        : status === 'demo'
+          ? 'Backend: demo'
+          : 'Backend: ok'
   const classes =
-    ok == null
+    status === 'unknown'
       ? 'border-slate-700 bg-slate-900/40 text-slate-200'
-      : ok
-        ? 'border-emerald-700/60 bg-emerald-950/30 text-emerald-200'
-        : 'border-rose-800/60 bg-rose-950/30 text-rose-200'
+      : status === 'down'
+        ? 'border-rose-800/60 bg-rose-950/30 text-rose-200'
+        : status === 'demo'
+          ? 'border-amber-700/60 bg-amber-950/30 text-amber-200'
+          : 'border-emerald-700/60 bg-emerald-950/30 text-emerald-200'
   return (
     <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${classes}`}>
       <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />

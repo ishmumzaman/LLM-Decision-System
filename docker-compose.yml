@@ -4,8 +4,23 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      LLM_PROVIDER: openai
+      # Values come from `.env` (repo root) or your shell environment.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEMO_MODE: ${DEMO_MODE:-1}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_JUDGE_MODEL: ${OPENAI_JUDGE_MODEL:-gpt-4o}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_FINETUNED_MODEL: ${OPENAI_FINETUNED_MODEL:-}
+
+      # Optional: cost estimation (so the UI can show $ without extra setup)
+      OPENAI_COST_INPUT_PER_1M: ${OPENAI_COST_INPUT_PER_1M:-}
+      OPENAI_COST_OUTPUT_PER_1M: ${OPENAI_COST_OUTPUT_PER_1M:-}
+      OPENAI_COST_INPUT_PER_1M_FINETUNED: ${OPENAI_COST_INPUT_PER_1M_FINETUNED:-}
+      OPENAI_COST_OUTPUT_PER_1M_FINETUNED: ${OPENAI_COST_OUTPUT_PER_1M_FINETUNED:-}
+
+      MAX_RUN_COST_USD: ${MAX_RUN_COST_USD:-}
     ports:
       - "8000:8000"
 
@@ -17,4 +32,3 @@ services:
       - backend
     ports:
       - "5173:80"
-
